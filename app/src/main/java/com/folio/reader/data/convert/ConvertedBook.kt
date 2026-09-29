@@ -31,7 +31,7 @@ object ConvertedBookWriter {
     private const val CONTENT_DIR = "content"
 
     fun write(book: ConvertedBook, root: File): ParsedEpub {
-        require(book.chapters.isNotEmpty()) { "El archivo no tiene contenido legible" }
+        require(book.chapters.isNotEmpty()) { "The file has no readable content" }
         val dir = File(root, CONTENT_DIR).apply { mkdirs() }
         book.resources.forEach { (path, bytes) ->
             val f = File(dir, path)
@@ -49,7 +49,7 @@ object ConvertedBookWriter {
             if (ch.title.isNotBlank()) toc += TocItem(ch.title, href, null, 0)
         }
         return ParsedEpub(
-            title = book.title.ifBlank { "Sin título" },
+            title = book.title.ifBlank { "Untitled" },
             author = book.author.ifBlank { "Autor desconocido" },
             language = book.language,
             coverHref = book.coverResource?.let { "$CONTENT_DIR/$it" }?.takeIf { File(root, it).exists() },

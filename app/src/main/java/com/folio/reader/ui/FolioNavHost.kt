@@ -58,10 +58,10 @@ private object Routes {
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
-    Tab(Routes.LIBRARY, "Biblioteca", Icons.AutoMirrored.Rounded.LibraryBooks),
-    Tab(Routes.COLLECTIONS, "Colecciones", Icons.Rounded.CollectionsBookmark),
-    Tab(Routes.STATS, "Progreso", Icons.Rounded.Insights),
-    Tab(Routes.SETTINGS, "Ajustes", Icons.Rounded.Settings),
+    Tab(Routes.LIBRARY, "Library", Icons.AutoMirrored.Rounded.LibraryBooks),
+    Tab(Routes.COLLECTIONS, "Collections", Icons.Rounded.CollectionsBookmark),
+    Tab(Routes.STATS, "Progress", Icons.Rounded.Insights),
+    Tab(Routes.SETTINGS, "Settings", Icons.Rounded.Settings),
 )
 
 @Composable

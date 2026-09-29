@@ -26,15 +26,15 @@ object FormatDetector {
             ascii.startsWith("Rar!") -> SourceKind.CBR
             ascii.startsWith("{\\rtf") -> SourceKind.RTF
             ascii.startsWith("PK") -> detectZip(file, ext)
-            ascii.startsWith("AT&TFORM") -> throw UnsupportedBookException("DjVu aún no se admite. Conviértelo a PDF.")
-            ascii.startsWith("ITSF") -> throw UnsupportedBookException("CHM no se admite. Conviértelo a EPUB con Calibre.")
-            ascii.startsWith("ITOLITLS") -> throw UnsupportedBookException("LIT no se admite. Conviértelo a EPUB con Calibre.")
+            ascii.startsWith("AT&TFORM") -> throw UnsupportedBookException("DjVu isn't supported yet. Convert it to PDF.")
+            ascii.startsWith("ITSF") -> throw UnsupportedBookException("CHM isn't supported. Convert it to EPUB with Calibre.")
+            ascii.startsWith("ITOLITLS") -> throw UnsupportedBookException("LIT isn't supported. Convert it to EPUB with Calibre.")
             ascii.startsWith("êDRMION") || ascii.startsWith("CONT") && ext in setOf("kfx", "azw", "azw8") ->
-                throw UnsupportedBookException("Formato Kindle KFX: suele tener DRM y no se puede abrir. Si es tuyo y sin DRM, conviértelo a EPUB con Calibre.")
+                throw UnsupportedBookException("Kindle KFX format: it usually has DRM and can't be opened. If it's yours and DRM-free, convert it to EPUB with Calibre.")
             ascii.contains("<FictionBook") -> SourceKind.FB2
             Regex("<!doctype html|<html[\\s>]", RegexOption.IGNORE_CASE).containsMatchIn(ascii) || ext in setOf("html", "htm", "xhtml") -> SourceKind.HTML
             ext in setOf("txt", "text", "md", "markdown") || looksLikeText(head) -> SourceKind.TXT
-            else -> throw UnsupportedBookException("Formato no reconocido (.$ext).")
+            else -> throw UnsupportedBookException("Unrecognized format (.$ext).")
         }
     }
 
@@ -47,7 +47,7 @@ object FormatDetector {
             names.any { it.endsWith(".fb2", ignoreCase = true) } -> SourceKind.FB2
             names.count { isImageName(it) } > 0 && names.count { isImageName(it) } >= names.count { !it.endsWith("/") } / 2 -> SourceKind.CBZ
             ext == "epub" -> SourceKind.EPUB
-            else -> throw UnsupportedBookException("Este ZIP no contiene un libro reconocible.")
+            else -> throw UnsupportedBookException("This ZIP doesn't contain a recognizable book.")
         }
     }
 

@@ -35,11 +35,11 @@ object PdfImport {
         val doc = try {
             PDDocument.load(pdf)
         } catch (e: InvalidPasswordException) {
-            throw UnsupportedBookException("Este PDF está protegido con contraseña.")
+            throw UnsupportedBookException("This PDF is password-protected.")
         }
         doc.use {
             val pages = doc.numberOfPages
-            if (pages == 0) throw UnsupportedBookException("El PDF no tiene páginas")
+            if (pages == 0) throw UnsupportedBookException("The PDF has no pages")
             val info = doc.documentInformation
             val stripper = PDFTextStripper()
             val texts = (1..pages).map { n ->
@@ -63,7 +63,7 @@ object PdfImport {
             val sorted = toc.filter { it.second == 0 }.sortedBy { it.third }
             val titles = (0 until pages).map { i ->
                 val section = sorted.lastOrNull { it.third <= i }?.first
-                if (section != null) "$section · p. ${i + 1}" else "Página ${i + 1}"
+                if (section != null) "$section · p. ${i + 1}" else "Page ${i + 1}"
             }
             renderCover(pdf, File(pdf.parentFile, "cover.jpg"))
             return FixedLayoutBook(
@@ -135,16 +135,16 @@ object ComicImport {
             } catch (e: UnsupportedBookException) {
                 throw e
             } catch (e: Exception) {
-                throw UnsupportedBookException("No se pudo abrir el CBR (los RAR5 aún no se admiten; conviértelo a CBZ).")
+                throw UnsupportedBookException("Couldn't open the CBR (RAR5 isn't supported yet; convert it to CBZ).")
             }
             else -> error("not a comic")
         }
-        if (extracted.isEmpty()) throw UnsupportedBookException("El cómic no contiene imágenes")
+        if (extracted.isEmpty()) throw UnsupportedBookException("The comic has no images")
         val hrefs = extracted.map { "pages/" + it.second.name }
         return FixedLayoutBook(
             title = fallbackTitle,
             author = "",
-            pageTitles = List(hrefs.size) { "Página ${it + 1}" },
+            pageTitles = List(hrefs.size) { "Page ${it + 1}" },
             pageTexts = List(hrefs.size) { "" },
             pageHrefs = hrefs,
             toc = emptyList(),

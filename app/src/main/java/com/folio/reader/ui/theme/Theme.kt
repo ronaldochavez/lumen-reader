@@ -56,14 +56,14 @@ object Folio {
 
     /** Accent choices for the main buttons. The first one is the original plum. */
     val accentPresets = linkedMapOf(
-        "Ciruela" to Plum,
+        "Plum" to Plum,
         "Coral" to Color(0xFFD9583C),
-        "Bosque" to Color(0xFF2F7D6D),
-        "Océano" to Color(0xFF2B6CB0),
-        "Turquesa" to Color(0xFF0F8B8D),
-        "Frambuesa" to Color(0xFFB83268),
-        "Ámbar" to Color(0xFFB7791F),
-        "Grafito" to Color(0xFF4A5568),
+        "Forest" to Color(0xFF2F7D6D),
+        "Ocean" to Color(0xFF2B6CB0),
+        "Teal" to Color(0xFF0F8B8D),
+        "Raspberry" to Color(0xFFB83268),
+        "Amber" to Color(0xFFB7791F),
+        "Graphite" to Color(0xFF4A5568),
     )
 }
 

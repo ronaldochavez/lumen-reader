@@ -109,7 +109,7 @@ fun FixedReaderScreen(
         }
         DisposableEffect(source) { onDispose { source?.close() } }
         if (source == null) {
-            Text("No se pudo abrir el archivo.", Modifier.align(Alignment.Center), color = ink)
+            Text("Couldn't open the file.", Modifier.align(Alignment.Center), color = ink)
             return@Box
         }
 
@@ -284,7 +284,7 @@ private fun ZoomablePage(
         } else {
             Image(
                 bitmap = img,
-                contentDescription = "Página ${index + 1}",
+                contentDescription = "Page ${index + 1}",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()

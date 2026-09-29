@@ -18,9 +18,9 @@ class HighlightsMarkdownTest {
     @Test
     fun groupsByBookAndChapter_quotesMultilineText_andAddsNotes() {
         val md = BackupManager.highlightsMarkdown(
-            books = listOf(book("a", "Crime and Punishment", "Dostoyevsky"), book("b", "Sin subrayados")),
+            books = listOf(book("a", "Crime and Punishment", "Dostoyevsky"), book("b", "No highlights")),
             highlights = listOf(
-                hl("a", 0, 10, "First line\nSecond line", note = "  Me gustó  "),
+                hl("a", 0, 10, "First line\nSecond line", note = "  Loved this  "),
                 hl("a", 0, 50, "Same chapter"),
                 hl("a", 2, 5, "Later chapter"),
             ),
@@ -36,15 +36,15 @@ class HighlightsMarkdownTest {
             > First line
             > Second line
 
-            **Nota:** Me gustó
+            **Note:** Loved this
 
             > Same chapter
 
-            ### Sección 3
+            ### Section 3
 
             > Later chapter
         """.trimIndent()
-        assertEquals(expected, md.substringAfter("libro\n\n").trimEnd())
-        assertFalse("books without highlights are left out", md.contains("Sin subrayados"))
+        assertEquals(expected, md.substringAfter("1 book\n\n").trimEnd())
+        assertFalse("books without highlights are left out", md.contains("No highlights"))
     }
 }

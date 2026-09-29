@@ -31,16 +31,16 @@ class EpubParser(private val root: File) {
 
     fun parse(): ParsedEpub {
         val container = File(root, "META-INF/container.xml")
-        require(container.exists()) { "EPUB inválido: falta META-INF/container.xml" }
+        require(container.exists()) { "Invalid EPUB: META-INF/container.xml is missing" }
         checkDrm()
         val containerDoc = xml(container)
         val opfPath = containerDoc.allElements.firstOrNull { it.localName() == "rootfile" }
             ?.attr("full-path")
             ?.takeIf { it.isNotBlank() }
-            ?: error("EPUB inválido: no se encontró el archivo OPF")
+            ?: error("Invalid EPUB: the OPF file wasn't found")
 
         val opfFile = File(root, opfPath)
-        require(opfFile.exists()) { "EPUB inválido: falta $opfPath" }
+        require(opfFile.exists()) { "Invalid EPUB: $opfPath is missing" }
         val opfDir = opfPath.substringBeforeLast('/', "")
         val opf = xml(opfFile)
 
@@ -65,7 +65,7 @@ class EpubParser(private val root: File) {
             ?.filter { it.mediaType.contains("html") || it.href.endsWith("html", ignoreCase = true) }
             ?.map { SpineItem(it.href, it.mediaType) }
             .orEmpty()
-        require(spine.isNotEmpty()) { "EPUB sin contenido legible" }
+        require(spine.isNotEmpty()) { "This EPUB has no readable content" }
 
         val cover = manifest.values.firstOrNull { "cover-image" in it.properties.split(' ') }
             ?: opf.allElements
@@ -97,7 +97,7 @@ class EpubParser(private val root: File) {
 
     /** Adobe/Apple/Readium LCP DRM encrypts the content files; only font obfuscation is harmless. */
     private fun checkDrm() {
-        val drm = "Este EPUB tiene DRM (protección anticopia) y no se puede abrir. Solo se admiten libros sin DRM."
+        val drm = "This EPUB has DRM (copy protection) and can't be opened. Only DRM-free books are supported."
         if (File(root, "META-INF/rights.xml").exists() || File(root, "META-INF/license.lcpl").exists()) {
             throw com.folio.reader.data.convert.UnsupportedBookException(drm)
         }

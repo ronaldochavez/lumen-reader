@@ -13,8 +13,8 @@ import kotlinx.coroutines.flow.emitAll
 import java.io.IOException
 
 enum class AiProvider(val label: String) {
-    CLAUDE("Claude (tu key)"),
-    GEMINI("Gemini (gratis)"),
+    CLAUDE("Claude (your key)"),
+    GEMINI("Gemini (free)"),
 }
 
 /**
@@ -72,18 +72,18 @@ class AiService(
             is MissingApiKeyException, is FreeQuotaExceededException -> e.message!!
             is GeminiApiException -> when {
                 e.reason == "API_KEY_INVALID" || e.message?.contains("API key", ignoreCase = true) == true ->
-                    "Tu key de Gemini no es válida. Revísala en Ajustes."
+                    "Your Gemini key isn't valid. Check it in Settings."
                 e.status == "FAILED_PRECONDITION" && e.message?.contains("location", ignoreCase = true) == true ->
-                    "El plan gratis de Gemini no está disponible en tu país. Usa una key de Anthropic en Ajustes."
-                e.httpCode == 403 -> "Tu key de Gemini no tiene permiso para este modelo."
-                e.httpCode >= 500 -> "Gemini está saturado ahora. Intenta de nuevo en un momento."
-                else -> "Gemini respondió con un error: ${e.message}"
+                    "Gemini's free plan isn't available in your country. Use an Anthropic key in Settings."
+                e.httpCode == 403 -> "Your Gemini key doesn't have access to this model."
+                e.httpCode >= 500 -> "Gemini is overloaded right now. Try again in a moment."
+                else -> "Gemini returned an error: ${e.message}"
             }
-            is UnauthorizedException, is PermissionDeniedException -> "Tu API key de Anthropic no es válida. Revísala en Ajustes."
-            is RateLimitException -> "Demasiadas solicitudes seguidas. Espera un momento e intenta de nuevo."
-            is AnthropicServiceException -> "La IA no está disponible ahora (${e.statusCode()}). Intenta de nuevo."
-            is IOException -> e.message ?: "Sin conexión. Revisa tu internet."
-            else -> e.message ?: "Algo salió mal."
+            is UnauthorizedException, is PermissionDeniedException -> "Your Anthropic API key isn't valid. Check it in Settings."
+            is RateLimitException -> "Too many requests in a row. Wait a moment and try again."
+            is AnthropicServiceException -> "The AI isn't available right now (${e.statusCode()}). Try again."
+            is IOException -> e.message ?: "No connection. Check your internet."
+            else -> e.message ?: "Something went wrong."
         }
 
         /** Errors where the right next step is adding or fixing a key in Settings. */

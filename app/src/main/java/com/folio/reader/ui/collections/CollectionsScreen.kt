@@ -103,12 +103,12 @@ fun CollectionsScreen(onOpenCollection: (Long) -> Unit, vm: CollectionsViewModel
             item {
                 Row(Modifier.statusBarsPadding().padding(top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
-                        Text("Organiza tus lecturas", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
-                        Text("Colecciones", style = MaterialTheme.typography.displaySmall)
+                        Text("Organize your reading", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+                        Text("Collections", style = MaterialTheme.typography.displaySmall)
                     }
                     FilledTonalButton(onClick = { creating = true }, shape = CircleShape) {
                         Icon(Icons.Rounded.Add, null, Modifier.size(18.dp))
-                        Text(" Nueva")
+                        Text(" New")
                     }
                 }
             }
@@ -121,7 +121,7 @@ fun CollectionsScreen(onOpenCollection: (Long) -> Unit, vm: CollectionsViewModel
     }
 
     if (creating) {
-        NameDialog(title = "Nueva colección", initial = "", confirm = "Crear", onDismiss = { creating = false }) {
+        NameDialog(title = "New collection", initial = "", confirm = "Create", onDismiss = { creating = false }) {
             vm.create(it); creating = false
         }
     }
@@ -157,7 +157,7 @@ private fun CollectionCard(c: CollectionWithBooks, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(c.collection.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    if (c.books.size == 1) "1 libro" else "${c.books.size} libros",
+                    if (c.books.size == 1) "1 book" else "${c.books.size} books",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -173,14 +173,14 @@ private fun CollectionCard(c: CollectionWithBooks, onClick: () -> Unit) {
 @Composable
 private fun EmptyCollections(onCreate: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Aún no tienes colecciones", style = MaterialTheme.typography.headlineSmall)
+        Text("No collections yet", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Agrupa libros como quieras: «Por leer», «Fantasía», «Club de lectura»…",
+            "Group books however you like: \"To read\", \"Fantasy\", \"Book club\"…",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
         )
-        TextButton(onClick = onCreate, modifier = Modifier.padding(top = 8.dp)) { Text("Crear la primera") }
+        TextButton(onClick = onCreate, modifier = Modifier.padding(top = 8.dp)) { Text("Create your first one") }
     }
 }
 
@@ -203,12 +203,12 @@ fun CollectionDetailScreen(
         topBar = {
             TopAppBar(
                 title = { Text(data?.collection?.name.orEmpty(), style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Atrás") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") } },
                 actions = {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "Más") }
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text("Renombrar") }, onClick = { menu = false; renaming = true })
-                        DropdownMenuItem(text = { Text("Eliminar colección") }, onClick = { menu = false; deleting = true })
+                        DropdownMenuItem(text = { Text("Rename") }, onClick = { menu = false; renaming = true })
+                        DropdownMenuItem(text = { Text("Delete collection") }, onClick = { menu = false; deleting = true })
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -226,7 +226,7 @@ fun CollectionDetailScreen(
             if (data != null && books.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
-                        "Vacía por ahora. En la biblioteca, mantén presionado un libro → «Agregar a colección».",
+                        "Empty for now. In the library, long-press a book → \"Add to collection\".",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -244,11 +244,11 @@ fun CollectionDetailScreen(
                             modifier = Modifier.align(Alignment.TopEnd).size(36.dp),
                         ) {
                             Box(Modifier.size(26.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background.copy(alpha = .85f)), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Rounded.MoreVert, "Opciones", Modifier.size(18.dp))
+                                Icon(Icons.Rounded.MoreVert, "Options", Modifier.size(18.dp))
                             }
                         }
                         DropdownMenu(expanded = bookMenu, onDismissRequest = { bookMenu = false }) {
-                            DropdownMenuItem(text = { Text("Quitar de la colección") }, onClick = {
+                            DropdownMenuItem(text = { Text("Remove from collection") }, onClick = {
                                 bookMenu = false; vm.removeBook(collectionId, book.id)
                             })
                         }
@@ -261,17 +261,17 @@ fun CollectionDetailScreen(
     }
 
     if (renaming) {
-        NameDialog("Renombrar", data?.collection?.name.orEmpty(), "Guardar", { renaming = false }) {
+        NameDialog("Rename", data?.collection?.name.orEmpty(), "Save", { renaming = false }) {
             vm.rename(collectionId, it); renaming = false
         }
     }
     if (deleting) {
         AlertDialog(
             onDismissRequest = { deleting = false },
-            title = { Text("¿Eliminar colección?") },
-            text = { Text("Los libros seguirán en tu biblioteca.") },
-            confirmButton = { TextButton(onClick = { vm.delete(collectionId); deleting = false; onBack() }) { Text("Eliminar") } },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancelar") } },
+            title = { Text("Delete collection?") },
+            text = { Text("The books will stay in your library.") },
+            confirmButton = { TextButton(onClick = { vm.delete(collectionId); deleting = false; onBack() }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
         )
     }
 }
@@ -287,11 +287,11 @@ private fun NameDialog(title: String, initial: String, confirm: String, onDismis
                 value = name,
                 onValueChange = { name = it },
                 singleLine = true,
-                placeholder = { Text("Nombre") },
+                placeholder = { Text("Name") },
                 shape = MaterialTheme.shapes.medium,
             )
         },
         confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onConfirm(name) }) { Text(confirm) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

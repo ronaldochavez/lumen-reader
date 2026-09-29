@@ -95,7 +95,7 @@ fun LibraryScreen(
                 // Any file: many e-book types have no registered MIME type; the importer sniffs the format.
                 onClick = { picker.launch(arrayOf("*/*")) },
                 icon = { Icon(Icons.Rounded.Add, null) },
-                text = { Text("Importar libro") },
+                text = { Text("Import book") },
                 shape = CircleShape,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -147,10 +147,10 @@ fun LibraryScreen(
     confirmDelete?.let { book ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
-            title = { Text("¿Eliminar libro?") },
-            text = { Text("Se borrarán «${book.title}», tus subrayados y marcadores. No se puede deshacer.") },
-            confirmButton = { TextButton(onClick = { vm.delete(book); confirmDelete = null }) { Text("Eliminar") } },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancelar") } },
+            title = { Text("Delete book?") },
+            text = { Text("\"${book.title}\" and its highlights and bookmarks will be deleted. This can't be undone.") },
+            confirmButton = { TextButton(onClick = { vm.delete(book); confirmDelete = null }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel") } },
         )
     }
 }
@@ -159,16 +159,16 @@ fun LibraryScreen(
 private fun Header(count: Int, importing: Int) {
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val greeting = when (hour) {
-        in 5..11 -> "Buenos días"
-        in 12..19 -> "Buenas tardes"
-        else -> "Buenas noches"
+        in 5..11 -> "Good morning"
+        in 12..17 -> "Good afternoon"
+        else -> "Good evening"
     }
     Column(Modifier.statusBarsPadding().padding(top = 16.dp)) {
         Text(greeting, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
-        Text("Tu biblioteca", style = MaterialTheme.typography.displaySmall)
+        Text("Your library", style = MaterialTheme.typography.displaySmall)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
             Text(
-                if (count == 1) "1 libro" else "$count libros",
+                if (count == 1) "1 book" else "$count books",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -176,7 +176,7 @@ private fun Header(count: Int, importing: Int) {
                 Spacer(Modifier.width(12.dp))
                 CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                 Text(
-                    "  Importando…",
+                    "  Importing…",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -196,8 +196,8 @@ private fun StreakPill(s: StatsSummary, onClick: () -> Unit) {
         Row(Modifier.padding(start = 12.dp, end = 16.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.LocalFireDepartment, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.secondary)
             Text(
-                (if (s.streak > 0) "  ${s.streak} ${if (s.streak == 1) "día" else "días"} de racha" else "  Empieza tu racha") +
-                    "  ·  hoy ${s.todayMinutes} de ${s.goalMinutes} min",
+                (if (s.streak > 0) "  ${s.streak}-day streak" else "  Start your streak") +
+                    "  ·  today ${s.todayMinutes} of ${s.goalMinutes} min",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
@@ -218,7 +218,7 @@ private fun ContinueReadingCard(book: BookEntity, onClick: () -> Unit) {
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "SEGUIR LEYENDO",
+                    "CONTINUE READING",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -239,7 +239,7 @@ private fun ContinueReadingCard(book: BookEntity, onClick: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
                 ProgressBar(book.progress, height = 6.dp)
                 Text(
-                    "${(book.progress * 100).toInt()}% leído",
+                    "${(book.progress * 100).toInt()}% read",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = .7f),
                     modifier = Modifier.padding(top = 6.dp),
@@ -256,7 +256,7 @@ private fun CollectionFilters(collections: List<CollectionWithBooks>, selected: 
             FilterChip(
                 selected = selected == null,
                 onClick = { onSelect(null) },
-                label = { Text("Todos") },
+                label = { Text("All") },
                 shape = CircleShape,
                 colors = chipColors(),
             )
@@ -292,7 +292,7 @@ private fun BookTile(book: BookEntity, onOpen: () -> Unit, onAddToCollection: ()
             BookCover(book, Modifier.fillMaxWidth())
             val badge = when (BookFormat.of(book.format)) {
                 BookFormat.PDF -> "PDF"
-                BookFormat.COMIC -> "CÓMIC"
+                BookFormat.COMIC -> "COMIC"
                 BookFormat.REFLOW -> null
             }
             if (badge != null) {
@@ -310,12 +310,12 @@ private fun BookTile(book: BookEntity, onOpen: () -> Unit, onAddToCollection: ()
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
-                    text = { Text("Agregar a colección") },
+                    text = { Text("Add to collection") },
                     leadingIcon = { Icon(Icons.Rounded.CollectionsBookmark, null) },
                     onClick = { menu = false; onAddToCollection() },
                 )
                 DropdownMenuItem(
-                    text = { Text("Eliminar") },
+                    text = { Text("Delete") },
                     leadingIcon = { Icon(Icons.Rounded.DeleteOutline, null) },
                     onClick = { menu = false; onDelete() },
                 )
@@ -339,7 +339,7 @@ private fun BookTile(book: BookEntity, onOpen: () -> Unit, onAddToCollection: ()
             ProgressBar(book.progress, Modifier.padding(top = 8.dp), height = 4.dp)
         } else if (book.lastOpenedAt == null) {
             Text(
-                "Nuevo",
+                "New",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSecondary,
                 modifier = Modifier
@@ -370,13 +370,13 @@ private fun EmptyLibrary(filtered: Boolean) {
             Icon(Icons.AutoMirrored.Rounded.MenuBook, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.secondary)
         }
         Text(
-            if (filtered) "Esta colección está vacía" else "Tu estante está esperando",
+            if (filtered) "This collection is empty" else "Your shelf is waiting",
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(top = 20.dp),
         )
         Text(
-            if (filtered) "Mantén presionado un libro para agregarlo aquí."
-            else "Importa un libro para empezar: EPUB, PDF, MOBI/AZW3, FB2, DOCX, TXT o cómics CBZ/CBR. Mientras lees, selecciona cualquier nombre y pregúntale a la IA — sin spoilers.",
+            if (filtered) "Long-press a book to add it here."
+            else "Import a book to get started: EPUB, PDF, MOBI/AZW3, FB2, DOCX, TXT or CBZ/CBR comics. While you read, select any name and ask the AI — no spoilers.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp),
@@ -386,7 +386,7 @@ private fun EmptyLibrary(filtered: Boolean) {
             Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(
-                    "  Árbol de personajes incluido",
+                    "  Character map included",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -408,7 +408,7 @@ private fun AddToCollectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Colecciones") },
+        title = { Text("Collections") },
         text = {
             Column {
                 Text(book.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -432,7 +432,7 @@ private fun AddToCollectionDialog(
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
-                    placeholder = { Text("Nueva colección…") },
+                    placeholder = { Text("New collection…") },
                     singleLine = true,
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
@@ -445,7 +445,7 @@ private fun AddToCollectionDialog(
             TextButton(onClick = {
                 if (newName.isNotBlank()) vm.createCollection(newName, withBook = book.id)
                 onDismiss()
-            }) { Text(if (newName.isNotBlank()) "Crear y agregar" else "Listo") }
+            }) { Text(if (newName.isNotBlank()) "Create and add" else "Done") }
         },
     )
 }

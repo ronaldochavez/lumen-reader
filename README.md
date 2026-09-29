@@ -1,135 +1,145 @@
-# Lumen — e-reader para Android con compañero de lectura IA (sin spoilers)
+# Lumen — an Android e-reader with a spoiler-free AI reading companion
 
-¿Vas en la página 180 y aparece un personaje que no recuerdas? Selecciónalo y pregúntale a Lumen quién es:
-la IA solo lee el libro **desde el inicio hasta tu página**, así que nunca te adelanta nada.
+On page 180 and a character shows up that you can't place? Select the name and ask Lumen who it is: the AI only
+reads the book **from the beginning up to your page**, so it never gives anything away.
 
-Lector con estética cálida: biblioteca con portadas, colecciones, subrayados en 4 colores con notas,
-marcadores, índice, temas Papel / Sepia / Noche / Negro y color de acento a elegir.
+A reader with a warm, cozy look: a library with covers, collections, highlights in 4 colors with notes, bookmarks,
+a table of contents, Paper / Sepia / Night / Black themes and an accent color of your choice.
 
-## Descargar e instalar
+## Download and install
 
-1. En tu teléfono o tablet Android (8.0 o más nuevo), abre la página de
-   [**Releases**](../../releases/latest) y descarga `Lumen-*.apk`.
-2. Ábrelo. Android pedirá permiso para «instalar apps de fuentes desconocidas» para tu navegador o gestor de
-   archivos: acéptalo solo para esta instalación.
-3. Importa tus libros con **Importar libro** (EPUB, PDF, MOBI, cómics…).
-4. Para la IA, la app te guía para crear una key **gratuita** de Google Gemini (sin tarjeta) la primera vez
-   que preguntes algo. Opcionalmente puedes usar tu propia key de Anthropic (Claude).
+1. On your Android phone or tablet (8.0 or newer), open the [**Releases**](../../releases/latest) page and download
+   `Lumen-*.apk`.
+2. Open it. Android will ask to allow "install unknown apps" for your browser or file manager: allow it just for
+   this install.
+3. Import your books with **Import book** (EPUB, PDF, MOBI, comics…).
+4. For the AI, the app walks you through creating a **free** Google Gemini key (no card needed) the first time you
+   ask something. You can optionally use your own Anthropic (Claude) key instead.
 
-Tus libros, subrayados y keys se quedan en tu dispositivo; no hay cuentas ni servidores de Lumen. Solo el texto
-que preguntas (y el libro hasta tu página) se envía al proveedor de IA que elijas.
+Your books, highlights and keys stay on your device; there are no Lumen accounts or servers. Only your question
+(and the book up to your page) is sent to the AI provider you choose.
 
-## Formatos
+## Formats
 
-| Formato | Cómo se lee | IA / árbol |
+| Format | How it's read | AI / character map |
 |---|---|---|
-| EPUB | Texto reflowable (WebView paginado) | Sí |
-| MOBI, AZW3, AZW, PRC (sin DRM) | Convertido a capítulos HTML al importar | Sí |
-| FB2 / FB2.ZIP, DOCX, RTF, TXT, MD, HTML | Convertido a capítulos HTML al importar | Sí |
-| PDF | Páginas con su diseño original (PdfRenderer), zoom con pellizco | Sí, con el texto extraído por página (no en PDFs escaneados) |
-| CBZ, CBR (RAR4) | Páginas de imagen | No (no hay texto) |
+| EPUB | Reflowable text (paginated WebView) | Yes |
+| MOBI, AZW3, AZW, PRC (DRM-free) | Converted to HTML chapters on import | Yes |
+| FB2 / FB2.ZIP, DOCX, RTF, TXT, MD, HTML | Converted to HTML chapters on import | Yes |
+| PDF | Pages with their original layout (PdfRenderer), pinch to zoom | Yes, using the text extracted per page (not for scanned PDFs) |
+| CBZ, CBR (RAR4) | Image pages | No (there's no text) |
 
-No se admiten libros con DRM (Kindle, Adobe, Apple, LCP): la app lo detecta y lo explica. Tampoco DjVu, CHM,
-LIT ni KFX; para esos se sugiere convertir con Calibre. MOBI con compresión HUFF/CDIC (poco común) aún no.
+Books with DRM (Kindle, Adobe, Apple, LCP) aren't supported: the app detects them and explains why. Neither are
+DjVu, CHM, LIT or KFX; for those, converting with Calibre is suggested. MOBI with HUFF/CDIC compression (rare)
+isn't supported yet.
 
-## Más funciones
+## More features
 
-- **Definir / traducir:** en el menú de selección, «Definir» explica la palabra en ese pasaje (y la traduce si el
-  libro no está en español). Solo envía el párrafo alrededor, nunca texto más allá de la página visible.
-- **Enciclopedia del libro:** lugares, objetos, términos, facciones y eventos con su ficha, hasta tu página.
-- **Búsqueda en el libro:** sin distinguir mayúsculas ni acentos; por defecto solo hasta donde vas (sin spoilers).
-- **Leer en voz alta:** voz del sistema (offline y gratis), resalta la frase y pasa de página sola. Se pausa al
-  salir de la app (aún no hay servicio de audio en segundo plano).
-- **Progreso:** minutos por día, racha, meta diaria y «te faltan ~X para terminar» según tu ritmo real. El tiempo
-  solo cuenta con el lector en pantalla y actividad en los últimos 3 minutos.
-- **Botones de volumen:** bajar = siguiente página, subir = anterior (se desactiva en Ajustes → Lectura; mientras
-  lee en voz alta, los botones controlan el volumen).
-- **Volver a donde ibas:** tras saltar (búsqueda, índice, subrayado, barra, enlace) aparece un botón para regresar;
-  la posición guardada no cambia hasta que lees 3 páginas en el nuevo lugar o tocas ✕.
-- **Respaldo:** Ajustes → Tus datos crea un .zip con libros, subrayados, notas, marcadores, colecciones, progreso y
-  estadísticas, y lo restaura (lo anterior se guarda 7 días en `pre-restore/`). También exporta los subrayados a
-  Markdown. Antes de cualquier actualización de la base de datos se copia a `db-snapshots/`.
+- **Define / translate:** in the selection menu, "Define" explains the word as used in that passage (and
+  translates it if the book is in another language than yours). It only sends the surrounding paragraph, never
+  text past the visible page.
+- **Book encyclopedia:** places, objects, terms, factions and events, each with its own entry, up to your page.
+- **Search in the book:** case- and accent-insensitive; by default only up to where you are (no spoilers).
+- **Read aloud:** the system voice (offline and free) highlights the current sentence and turns pages by itself.
+  It pauses when you leave the app (there's no background audio service yet).
+- **Progress:** minutes per day, streak, daily goal and "~X left to finish" based on your real pace. Time only
+  counts while the reader is on screen and you've been active in the last 3 minutes.
+- **Volume buttons:** volume down = next page, volume up = previous (can be turned off in Settings → Reading;
+  while reading aloud, the buttons control the volume).
+- **Back to where you were:** after a jump (search, contents, highlight, slider, link) a button takes you back;
+  the saved position doesn't change until you read 3 pages at the new spot or tap ✕.
+- **Backup:** Settings → Your data creates a .zip with your books, highlights, notes, bookmarks, collections,
+  progress and stats, and restores it (the previous library is kept for 7 days in `pre-restore/`). It also exports
+  your highlights to Markdown. Before any database upgrade, the database is copied to `db-snapshots/`.
 
-Además tiene funciones de IA sin spoilers:
+And the spoiler-free AI features:
 
-- **Pregúntale a Lumen.** Mantén presionado cualquier texto → *Preguntar a la IA* → «¿Quién es y de dónde salió?».
-  La IA recibe **solo el libro desde el inicio hasta el final de tu página actual** y tiene instrucciones de no
-  usar lo que pueda saber del libro por otras fuentes. También sirve para lugares, objetos, términos o eventos.
-  El botón **¿Dónde me quedé?** hace un resumen hasta tu posición.
-- **Árbol de personajes.** Mapa interactivo (zoom, paneo, tocar un personaje) de quién es quién y cómo se
-  relacionan, generado hasta tu página. Se guarda; si avanzas, te ofrece actualizarlo. Si retrocediste y el mapa
-  guardado va más adelante, te avisa antes de mostrarlo.
+- **Ask Lumen.** Long-press any text → *Ask AI* → "Who is this and where did they come from?". The AI receives
+  **only the book from the beginning to the end of your current page** and is instructed not to use anything it
+  may know about the book from elsewhere. It works for places, objects, terms and events too. The
+  **Where was I?** button opens the same chat, empty, so you can ask for a recap or anything else.
+- **Character map.** An interactive map (zoom, pan, tap a character) of who's who and how they're connected,
+  built up to your page. It's saved; when you read further, it offers to update it. If you went back and the
+  saved map goes further than you, it warns you before showing it.
 
-## Compilar e instalar
+The AI answers in the language of your question; the map and the encyclopedia are written in your device's
+language.
 
-Requisitos: JDK 17 y Android SDK 36 (o simplemente Android Studio reciente).
+## Build and install
+
+Requirements: JDK 17 and Android SDK 36 (or just a recent Android Studio).
 
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-El APK queda en `app/build/outputs/apk/debug/app-debug.apk`. Con un teléfono conectado (depuración USB):
+The APK ends up in `app/build/outputs/apk/debug/app-debug.apk`. With a phone connected (USB debugging):
 
 ```bash
 ./gradlew :app:installDebug
 ```
 
-Para un APK de release firmado, crea `keystore.properties` en la raíz (no se sube a git) con `storeFile`,
-`storePassword`, `keyAlias` y `keyPassword`, y ejecuta `./gradlew :app:assembleRelease`.
+For a signed release APK, create `keystore.properties` in the project root (it's never committed) with
+`storeFile`, `storePassword`, `keyAlias` and `keyPassword`, then run `./gradlew :app:assembleRelease`.
 
-## IA: gratis primero, key personal después
+## AI: free first, personal key later
 
-1. **Gratis (Gemini).** La primera vez que preguntas algo, la hoja de la IA ofrece activarla: se abre Google AI
-   Studio, el usuario crea una key gratuita (sin tarjeta) y la pega ahí mismo. Usa `gemini-3.8-flash` (1M de
-   contexto). En el plan gratuito Google puede usar los textos para mejorar sus productos; la app lo avisa.
-2. **Personal (Claude).** Si se acaba la cuota gratis (error 429) la app lo explica y sugiere agregar una key de
-   Anthropic en Ajustes. Con key de Anthropic, Claude tiene prioridad (Opus 5.5 por defecto; Sonnet 5.5 o
-   Haiku 4.5 opcionales).
+1. **Free (Gemini).** The first time you ask something, the AI sheet offers to turn it on: Google AI Studio opens,
+   you create a free key (no card) and paste it right there. It uses `gemini-3.8-flash` (1M-token context), and
+   retries and falls back to `gemini-3.7-flash` when Google is overloaded. On the free plan, Google may use the
+   text to improve its products; the app says so.
+2. **Personal (Claude).** If the free quota runs out (error 429), the app explains it and suggests adding an
+   Anthropic key in Settings. With an Anthropic key, Claude takes priority (Opus 5.5 by default; Sonnet 5.5 or
+   Haiku 4.5 optional).
 
-Ambas keys se guardan cifradas con el Android Keystore. Los prompts y reglas anti-spoiler son los mismos para
-los dos proveedores (`ai/AiCommon.kt`); `AiService` elige el proveedor en cada petición.
+Both keys are stored encrypted with the Android Keystore. The prompts and anti-spoiler rules are the same for both
+providers (`ai/AiCommon.kt`); `AiService` picks the provider on each request.
 
-## Cómo funciona el «sin spoilers»
+## How "no spoilers" works
 
-1. Al importar, cada capítulo del EPUB se convierte a texto plano (`files/books/<id>/.folio/text/<n>.txt`).
-2. El lector pagina cada capítulo con columnas CSS dentro de un WebView. `reader.js` mide posiciones como
-   *offsets de carácter* en el texto del capítulo, así que sabe exactamente qué carácter es el último visible.
-3. Al preguntar, se envían los capítulos anteriores completos + el capítulo actual **cortado en el último carácter
-   de tu página** (o el final de tu selección si pasa de página), con un marcador `[EL LECTOR VA AQUÍ…]`.
-4. El prompt de sistema prohíbe usar conocimiento externo del libro y especular sobre lo que viene.
+1. On import, each chapter is converted to plain text (`files/books/<id>/.folio/text/<n>.txt`).
+2. The reader paginates each chapter with CSS columns inside a WebView. `reader.js` measures positions as
+   *character offsets* in the chapter text, so it knows exactly which character is the last one visible.
+3. When you ask, it sends the previous chapters in full + the current chapter **cut at the last character of your
+   page** (or the end of your selection if it runs past the page), with a `[THE READER IS HERE…]` marker.
+4. The system prompt forbids using outside knowledge of the book and speculating about what comes next.
 
-Costo: los capítulos ya leídos van en un bloque con *prompt caching* (TTL 1 h), así que las preguntas seguidas
-en el mismo capítulo reutilizan la caché y cuestan una fracción de la primera.
+Cost: the chapters you've already read go in a *prompt-cached* block (1 h TTL), so follow-up questions in the same
+chapter reuse the cache and cost a fraction of the first one.
 
-## Estructura
+## Project structure
 
 ```
 app/src/main/
-  assets/reader/          reader.js (paginación, offsets, subrayados, selección) + reader.css
+  assets/reader/          reader.js (pagination, offsets, highlights, selection) + reader.css
   java/com/folio/reader/
-    ai/                   ClaudeService (SDK Java de Anthropic), contexto sin spoilers, modelo del grafo
-    data/                 Room (libros, capítulos, índice, subrayados, marcadores, colecciones, grafos),
-                          importador/parser EPUB, ajustes (DataStore + Keystore)
-    data/convert/         Detección de formato y convertidores (MOBI, FB2, DOCX, RTF, TXT, HTML),
-                          importación de PDF (pdfbox-android) y cómics (CBZ/CBR)
-    ui/reader/fixed       Lector de páginas para PDF y cómics
-    ui/library            Biblioteca («Seguir leyendo», filtros por colección, importar)
-    ui/collections        Colecciones
-    ui/reader             Lector: WebView, menú de selección propio, hojas de índice/notas/tipografía/IA
-    ui/graph              Árbol de personajes (layout de fuerzas + Canvas)
-    ui/settings           API key y modelo
-tools/reader-harness.html Prueba el motor de lectura en un navegador de escritorio (tools/serve.ps1)
+    ai/                   Claude (Anthropic Java SDK) and Gemini (REST) services, spoiler-free context, prompts
+    data/                 Room (books, chapters, contents, highlights, bookmarks, collections, maps, stats),
+                          EPUB importer/parser, settings (DataStore + Keystore), backups
+    data/convert/         Format detection and converters (MOBI, FB2, DOCX, RTF, TXT, HTML),
+                          PDF (pdfbox-android) and comic (CBZ/CBR) import
+    ui/reader/fixed       Page reader for PDFs and comics
+    ui/library            Library ("Continue reading", collection filters, import)
+    ui/collections        Collections
+    ui/reader             Reader: WebView, custom selection menu, contents/notes/typography/AI sheets
+    ui/graph              Character map (force layout + Canvas)
+    ui/encyclopedia       Book encyclopedia
+    ui/stats              Progress, streaks and daily goal
+    ui/settings           Appearance, reading, AI keys and model, backups
+tools/reader-harness.html Tests the reading engine in a desktop browser (tools/serve.ps1)
 ```
 
-Tests JVM: `./gradlew :app:testDebugUnitTest` (forma de las peticiones a Claude y corte de texto).
+JVM tests: `./gradlew :app:testDebugUnitTest` (request shapes for Claude and Gemini, the spoiler cut, converters,
+stats, search, theme contrast, highlight export).
 
-## Pendiente / ideas
+## To do / ideas
 
-- Subrayados en PDF (hoy solo marcadores) y modo "reflow" de PDF.
-- MOBI con compresión HUFF/CDIC; CBR en RAR5; CB7.
-- Sincronización automática entre dispositivos (hoy: respaldo manual en .zip).
-- Para publicar en Play Store con usuarios que no tengan API key: un backend propio que guarde la key.
+- Highlights in PDFs (bookmarks only today) and a PDF "reflow" mode.
+- MOBI with HUFF/CDIC compression; CBR in RAR5; CB7.
+- Automatic sync between devices (today: manual .zip backup).
+- Background audio for read-aloud.
+- To publish on the Play Store for users without an API key: a small backend that holds the key.
 
-## Licencia
+## License
 
-[MIT](LICENSE). El código interno (paquete `com.folio.reader`) conserva el nombre original del proyecto.
+[MIT](LICENSE). The internal code (package `com.folio.reader`) keeps the project's original name.

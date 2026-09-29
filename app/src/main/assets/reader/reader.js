@@ -459,7 +459,7 @@
     sentencesFrom: sentencesFrom,
     ttsMark: ttsMark,
     ttsClear: ttsClear,
-    /** Text around a selection for "Definir": ~500 chars before, and after it never past the visible page. */
+    /** Text around a selection for "Define": ~500 chars before, and after it never past the visible page. */
     contextAround: function (start, end) {
       var from = Math.max(0, start - 500);
       var to = Math.min(S.total, Math.max(end, Math.min(S.pageEnd, end + 400)));

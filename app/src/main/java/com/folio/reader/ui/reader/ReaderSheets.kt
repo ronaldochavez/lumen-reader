@@ -109,9 +109,9 @@ import com.folio.reader.ui.theme.SerifDisplay
 @Composable
 fun TocSheet(ui: ReaderUiState, onDismiss: () -> Unit, onSelect: (Int, String?) -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Text("Índice", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 24.dp))
+        Text("Contents", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 24.dp))
         Text(
-            "${ui.book?.title.orEmpty()} · ${(ui.progress * 100).toInt()}% leído",
+            "${ui.book?.title.orEmpty()} · ${(ui.progress * 100).toInt()}% read",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
@@ -173,7 +173,7 @@ fun DefineSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Translate, null, tint = MaterialTheme.colorScheme.primary)
-                Text("  Definir", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text("  Define", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
             Text(
                 state.selection.text.trim().take(120),
@@ -196,10 +196,10 @@ fun DefineSheet(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onAskMore, shape = CircleShape) {
                         Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp))
-                        Text("  Preguntar más")
+                        Text("  Ask more")
                     }
                     if (!state.streaming && state.text.isNotBlank()) {
-                        TextButton(onClick = { onCopy(state.text.replace("**", "")) }) { Text("Copiar") }
+                        TextButton(onClick = { onCopy(state.text.replace("**", "")) }) { Text("Copy") }
                     }
                 }
             }
@@ -224,11 +224,11 @@ fun SearchSheet(
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(300); runCatching { focus.requestFocus() } }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxHeight(0.9f).imePadding()) {
-            Text("Buscar en el libro", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 24.dp))
+            Text("Search in book", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 24.dp))
             OutlinedTextField(
                 value = state.query,
                 onValueChange = onQuery,
-                placeholder = { Text("Palabra, nombre o frase…") },
+                placeholder = { Text("Word, name or phrase…") },
                 singleLine = true,
                 shape = CircleShape,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp).focusRequester(focus),
@@ -242,10 +242,10 @@ fun SearchSheet(
             ) {
                 Icon(Icons.Rounded.Shield, null, Modifier.size(18.dp), tint = if (state.onlyUpToHere) Folio.Mint else MaterialTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                    Text("Solo hasta donde voy", style = MaterialTheme.typography.titleSmall)
+                    Text("Only up to where I am", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        if (state.onlyUpToHere) "Sin spoilers: no muestra texto que aún no leíste."
-                        else "Buscando en todo el libro: los resultados pueden adelantar la historia.",
+                        if (state.onlyUpToHere) "No spoilers: text you haven't read yet isn't shown."
+                        else "Searching the whole book: results may give away the story.",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (state.onlyUpToHere) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                     )
@@ -254,11 +254,11 @@ fun SearchSheet(
             }
             HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
             val status = when {
-                state.query.trim().length < 2 -> "Escribe al menos 2 letras."
-                state.searching -> "Buscando…"
-                state.results.isEmpty() -> "Sin resultados."
-                state.truncated -> "Más de ${state.results.size} resultados; mostrando los primeros."
-                else -> if (state.results.size == 1) "1 resultado" else "${state.results.size} resultados"
+                state.query.trim().length < 2 -> "Type at least 2 letters."
+                state.searching -> "Searching…"
+                state.results.isEmpty() -> "No results."
+                state.truncated -> "More than ${state.results.size} results; showing the first ones."
+                else -> if (state.results.size == 1) "1 result" else "${state.results.size} results"
             }
             Text(status, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp))
             LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)) {
@@ -309,14 +309,14 @@ fun AnnotationsSheet(
 ) {
     var tab by remember { mutableIntStateOf(0) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Text("Tus notas", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 24.dp))
+        Text("Your notes", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 24.dp))
         PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent, modifier = Modifier.padding(top = 8.dp)) {
-            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Subrayados · ${ui.highlights.size}") })
-            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Marcadores · ${ui.bookmarks.size}") })
+            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Highlights · ${ui.highlights.size}") })
+            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Bookmarks · ${ui.bookmarks.size}") })
         }
         LazyColumn(Modifier.fillMaxWidth().heightIn(min = 240.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
             if (tab == 0) {
-                if (ui.highlights.isEmpty()) item { EmptyNote("Mantén presionado el texto y elige «Subrayar» o «Nota».") }
+                if (ui.highlights.isEmpty()) item { EmptyNote("Long-press the text and choose \"Highlight\" or \"Note\".") }
                 items(ui.highlights, key = { it.id }) { h ->
                     Row(
                         Modifier
@@ -358,7 +358,7 @@ fun AnnotationsSheet(
                     }
                 }
             } else {
-                if (ui.bookmarks.isEmpty()) item { EmptyNote("Toca el ícono de marcador arriba para guardar esta página.") }
+                if (ui.bookmarks.isEmpty()) item { EmptyNote("Tap the bookmark icon at the top to save this page.") }
                 items(ui.bookmarks, key = { it.id }) { b ->
                     Row(
                         Modifier
@@ -377,7 +377,7 @@ fun AnnotationsSheet(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        IconButton(onClick = { onDeleteBookmark(b) }) { Icon(Icons.Rounded.DeleteOutline, "Quitar") }
+                        IconButton(onClick = { onDeleteBookmark(b) }) { Icon(Icons.Rounded.DeleteOutline, "Remove") }
                     }
                 }
             }
@@ -386,7 +386,7 @@ fun AnnotationsSheet(
 }
 
 private fun chapterName(ui: ReaderUiState, spine: Int) =
-    ui.chapters.getOrNull(spine)?.let(SpoilerFreeContextBuilder::label) ?: "Sección ${spine + 1}"
+    ui.chapters.getOrNull(spine)?.let(SpoilerFreeContextBuilder::label) ?: "Section ${spine + 1}"
 
 @Composable
 private fun EmptyNote(text: String) {
@@ -407,12 +407,12 @@ private fun EmptyNote(text: String) {
 fun ReaderSettingsSheet(settings: ReaderSettings, onDismiss: () -> Unit, onChange: ((ReaderSettings) -> ReaderSettings) -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(start = 24.dp, end = 24.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Text("Lectura", style = MaterialTheme.typography.headlineMedium)
+            Text("Reading", style = MaterialTheme.typography.headlineMedium)
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Tamaño", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text("Size", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 FilledIconButton(onClick = { onChange { it.copy(fontSize = (it.fontSize - 1).coerceAtLeast(13)) } }) {
-                    Icon(Icons.Rounded.Remove, "Más pequeño")
+                    Icon(Icons.Rounded.Remove, "Smaller")
                 }
                 Text(
                     "${settings.fontSize}",
@@ -420,12 +420,12 @@ fun ReaderSettingsSheet(settings: ReaderSettings, onDismiss: () -> Unit, onChang
                     modifier = Modifier.widthIn(min = 44.dp).padding(horizontal = 12.dp),
                 )
                 FilledIconButton(onClick = { onChange { it.copy(fontSize = (it.fontSize + 1).coerceAtMost(34)) } }) {
-                    Icon(Icons.Rounded.Add, "Más grande")
+                    Icon(Icons.Rounded.Add, "Larger")
                 }
             }
 
             Column {
-                Text("Tema", style = MaterialTheme.typography.titleSmall)
+                Text("Theme", style = MaterialTheme.typography.titleSmall)
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     ReaderTheme.entries.forEach { t ->
                         val selected = t == settings.theme
@@ -448,11 +448,11 @@ fun ReaderSettingsSheet(settings: ReaderSettings, onDismiss: () -> Unit, onChang
                 }
             }
 
-            OptionRow("Letra", listOf("Serif" to true, "Sans" to false), settings.serif) { v -> onChange { it.copy(serif = v) } }
-            OptionRow("Interlineado", listOf("Compacto" to 1.4f, "Normal" to 1.6f, "Amplio" to 1.85f), settings.lineHeight) { v ->
+            OptionRow("Font", listOf("Serif" to true, "Sans" to false), settings.serif) { v -> onChange { it.copy(serif = v) } }
+            OptionRow("Line spacing", listOf("Compact" to 1.4f, "Normal" to 1.6f, "Wide" to 1.85f), settings.lineHeight) { v ->
                 onChange { it.copy(lineHeight = v) }
             }
-            OptionRow("Márgenes", listOf("Estrechos" to 16, "Normales" to 24, "Amplios" to 36), settings.margin) { v ->
+            OptionRow("Margins", listOf("Narrow" to 16, "Normal" to 24, "Wide" to 36), settings.margin) { v ->
                 onChange { it.copy(margin = v) }
             }
         }
@@ -486,17 +486,17 @@ private fun <T> OptionRow(title: String, options: List<Pair<String, T>>, selecte
 
 /** Suggestions about a selected passage. */
 private val selectionQuestions = listOf(
-    "¿Quién es y de dónde salió?",
-    "¿Qué es esto?",
-    "¿Qué significa aquí?",
-    "¿Qué ha pasado con esto hasta ahora?",
+    "Who is this and where did they come from?",
+    "What is this?",
+    "What does it mean here?",
+    "What has happened with this so far?",
 )
 
-/** Suggestions for the open "¿Dónde me quedé?" chat. Nothing is sent until the reader taps or types. */
+/** Suggestions for the open "Where was I?" chat. Nothing is sent until the reader taps or types. */
 private val chatSuggestions = listOf(
-    "¿Dónde me quedé?",
-    "¿Quiénes son los personajes principales?",
-    "¿Qué quedó pendiente?",
+    "Where was I?",
+    "Who are the main characters?",
+    "What's still unresolved?",
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -536,11 +536,11 @@ fun AskSheet(
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onPrimary) }
                 Column(Modifier.padding(start = 12.dp).weight(1f)) {
-                    Text("Pregúntale a Lumen", style = MaterialTheme.typography.titleLarge)
+                    Text("Ask Lumen", style = MaterialTheme.typography.titleLarge)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Shield, null, Modifier.size(13.dp), tint = Folio.Mint)
                         Text(
-                            " Sin spoilers · solo hasta ${state.positionLabel}" +
+                            " No spoilers · only up to ${state.positionLabel}" +
                                 (state.provider?.let { " · ${it.label}" } ?: ""),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -549,7 +549,7 @@ fun AskSheet(
                         )
                     }
                 }
-                IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, "Cerrar") }
+                IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, "Close") }
             }
 
             LazyColumn(
@@ -564,7 +564,7 @@ fun AskSheet(
                             Row(Modifier.padding(14.dp)) {
                                 Box(Modifier.width(3.dp).height(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary))
                                 Text(
-                                    "«${sel.text.trim()}»",
+                                    "“${sel.text.trim()}”",
                                     fontFamily = SerifDisplay,
                                     fontStyle = FontStyle.Italic,
                                     style = MaterialTheme.typography.bodyLarge,
@@ -581,8 +581,8 @@ fun AskSheet(
                     if (state.selection == null) {
                         item {
                             Text(
-                                "Pregúntame lo que quieras del libro hasta tu página: qué ha pasado, quién es alguien, " +
-                                    "qué significa algo… Sin spoilers.",
+                                "Ask me anything about the book up to your page: what has happened, who someone is, " +
+                                    "what something means… No spoilers.",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontFamily = FontFamily.Serif,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -632,7 +632,7 @@ fun AskSheet(
                     state.quotaExceeded -> item {
                         NoticeCard(
                             text = state.error.orEmpty(),
-                            action = "Agregar mi key de Anthropic",
+                            action = "Add my Anthropic key",
                             onAction = onOpenSettings,
                             container = MaterialTheme.colorScheme.secondaryContainer,
                             content = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -641,7 +641,7 @@ fun AskSheet(
                     state.error != null -> item {
                         NoticeCard(
                             text = state.error,
-                            action = if (state.needsKey) "Ir a Ajustes" else null,
+                            action = if (state.needsKey) "Go to Settings" else null,
                             onAction = onOpenSettings,
                             container = MaterialTheme.colorScheme.errorContainer,
                             content = MaterialTheme.colorScheme.onErrorContainer,
@@ -656,7 +656,7 @@ fun AskSheet(
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
-                    placeholder = { Text(if (state.messages.isEmpty()) "Escribe tu pregunta…" else "Pregunta algo más…") },
+                    placeholder = { Text(if (state.messages.isEmpty()) "Type your question…" else "Ask something else…") },
                     shape = CircleShape,
                     maxLines = 4,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -668,7 +668,7 @@ fun AskSheet(
                     onClick = { onAsk(input); input = "" },
                     enabled = input.isNotBlank() && !state.streaming,
                     modifier = Modifier.size(52.dp),
-                ) { Icon(Icons.AutoMirrored.Rounded.Send, "Enviar") }
+                ) { Icon(Icons.AutoMirrored.Rounded.Send, "Send") }
             }
         }
     }
@@ -691,43 +691,43 @@ fun FreeAiSetupCard(onSaveGeminiKey: (String) -> Unit, onOpenSettings: (() -> Un
     var key by remember { mutableStateOf("") }
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primaryContainer) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Activa la IA gratis", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Turn on the free AI", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text(
-                "Lumen usa Google Gemini en su plan gratuito. Solo necesitas una key gratis de Google (sin tarjeta):",
+                "Lumen uses Google Gemini on its free plan. All you need is a free Google key (no card):",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Text(
-                "1. Abre Google AI Studio e inicia sesión con tu cuenta de Google.\n" +
-                    "2. Toca «Create API key» y cópiala.\n" +
-                    "3. Pégala aquí abajo.",
+                "1. Open Google AI Studio and sign in with your Google account.\n" +
+                    "2. Tap \"Create API key\" and copy it.\n" +
+                    "3. Paste it below.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             OutlinedButton(
                 onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GeminiService.API_KEY_URL))) } },
                 shape = CircleShape,
-            ) { Text("Abrir Google AI Studio") }
+            ) { Text("Open Google AI Studio") }
             OutlinedTextField(
                 value = key,
                 onValueChange = { key = it },
-                placeholder = { Text("Pega tu key de Gemini") },
+                placeholder = { Text("Paste your Gemini key") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth(),
             )
             Button(onClick = { onSaveGeminiKey(key.trim()); key = "" }, enabled = key.isNotBlank(), shape = CircleShape) {
-                Text("Guardar y continuar")
+                Text("Save and continue")
             }
             Text(
-                "Privacidad: en el plan gratis, Google puede usar el texto enviado para mejorar sus productos. " +
-                    "Si prefieres que no, usa tu propia key de Anthropic (de pago).",
+                "Privacy: on the free plan, Google may use the text you send to improve its products. " +
+                    "If you'd rather it didn't, use your own (paid) Anthropic key.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = .75f),
             )
             if (onOpenSettings != null) {
-                TextButton(onClick = onOpenSettings) { Text("¿Ya tienes key de Anthropic? Ajustes") }
+                TextButton(onClick = onOpenSettings) { Text("Already have an Anthropic key? Settings") }
             }
         }
     }
@@ -747,7 +747,7 @@ private fun TypingDots() {
             Box(Modifier.size(9.dp).alpha(a).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
         }
         Text(
-            "  Releyendo hasta tu página…",
+            "  Rereading up to your page…",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -776,7 +776,7 @@ fun HighlightEditorSheet(
     ModalBottomSheet(onDismissRequest = { onSave(highlight.copy(color = color, note = note.ifBlank { null })) }) {
         Column(Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp).imePadding(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
-                "«${highlight.text}»",
+                "“${highlight.text}”",
                 fontFamily = SerifDisplay,
                 fontStyle = FontStyle.Italic,
                 style = MaterialTheme.typography.bodyLarge,
@@ -798,7 +798,7 @@ fun HighlightEditorSheet(
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                placeholder = { Text("Agrega una nota…") },
+                placeholder = { Text("Add a note…") },
                 shape = MaterialTheme.shapes.medium,
                 minLines = 2,
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
@@ -806,11 +806,11 @@ fun HighlightEditorSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { onAsk(highlight) }) {
                     Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp))
-                    Text("  Preguntar a la IA")
+                    Text("  Ask AI")
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { onDelete(highlight) }) { Icon(Icons.Rounded.DeleteOutline, "Eliminar") }
-                TextButton(onClick = { onSave(highlight.copy(color = color, note = note.ifBlank { null })) }) { Text("Guardar") }
+                IconButton(onClick = { onDelete(highlight) }) { Icon(Icons.Rounded.DeleteOutline, "Delete") }
+                TextButton(onClick = { onSave(highlight.copy(color = color, note = note.ifBlank { null })) }) { Text("Save") }
             }
         }
     }

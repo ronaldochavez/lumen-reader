@@ -99,8 +99,8 @@ fun StatsScreen(onOpenBook: (String) -> Unit, vm: StatsViewModel = viewModel(fac
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column {
-            Text("Cada página cuenta", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
-            Text("Tu progreso", style = MaterialTheme.typography.displaySmall)
+            Text("Every page counts", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+            Text("Your progress", style = MaterialTheme.typography.displaySmall)
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -115,12 +115,12 @@ fun StatsScreen(onOpenBook: (String) -> Unit, vm: StatsViewModel = viewModel(fac
                         modifier = Modifier.padding(top = 6.dp),
                     )
                     Text(
-                        if (s.streak == 1) "día de racha" else "días de racha",
+                        if (s.streak == 1) "day streak" else "days streak",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                     Text(
-                        "Mejor: ${s.bestStreak}",
+                        "Best: ${s.bestStreak}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = .7f),
                         modifier = Modifier.padding(top = 4.dp),
@@ -133,11 +133,11 @@ fun StatsScreen(onOpenBook: (String) -> Unit, vm: StatsViewModel = viewModel(fac
                     GoalRing(s.goalProgress, Modifier.size(84.dp)) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("${s.todayMinutes}", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text("de ${s.goalMinutes} min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("of ${s.goalMinutes} min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
                     Text(
-                        if (s.goalProgress >= 1f) "¡Meta de hoy cumplida!" else "Meta de hoy",
+                        if (s.goalProgress >= 1f) "Today's goal reached!" else "Today's goal",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(top = 8.dp),
@@ -147,7 +147,7 @@ fun StatsScreen(onOpenBook: (String) -> Unit, vm: StatsViewModel = viewModel(fac
         }
 
         Card {
-            Text("Meta diaria", style = MaterialTheme.typography.titleMedium)
+            Text("Daily goal", style = MaterialTheme.typography.titleMedium)
             Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(10, 20, 30, 45, 60).forEach { m ->
                     val sel = m == s.goalMinutes
@@ -162,20 +162,20 @@ fun StatsScreen(onOpenBook: (String) -> Unit, vm: StatsViewModel = viewModel(fac
         }
 
         Card {
-            Text("Minutos por día", style = MaterialTheme.typography.titleMedium)
-            Text("Últimos 7 días · toca una barra para ver el detalle", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Minutes per day", style = MaterialTheme.typography.titleMedium)
+            Text("Last 7 days · tap a bar for details", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             WeekBars(s.last7, s.goalMinutes, Modifier.fillMaxWidth().height(180.dp).padding(top = 12.dp))
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatTile("Total leído", StatsRepository.formatDuration(s.totalMinutes), Modifier.weight(1f))
-            StatTile("Este mes", StatsRepository.formatDuration(s.monthMinutes), Modifier.weight(1f))
-            StatTile("Páginas", "${s.totalPages}", Modifier.weight(1f))
+            StatTile("Total read", StatsRepository.formatDuration(s.totalMinutes), Modifier.weight(1f))
+            StatTile("This month", StatsRepository.formatDuration(s.monthMinutes), Modifier.weight(1f))
+            StatTile("Pages", "${s.totalPages}", Modifier.weight(1f))
         }
 
         if (reading.isNotEmpty()) {
             Card {
-                Text("Leyendo ahora", style = MaterialTheme.typography.titleMedium)
+                Text("Reading now", style = MaterialTheme.typography.titleMedium)
                 reading.forEach { r ->
                     Surface(onClick = { onOpenBook(r.book.id) }, color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.medium) {
                         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -185,7 +185,7 @@ fun StatsScreen(onOpenBook: (String) -> Unit, vm: StatsViewModel = viewModel(fac
                                 ProgressBar(r.book.progress, Modifier.padding(vertical = 6.dp), height = 4.dp)
                                 Text(
                                     "${(r.book.progress * 100).toInt()}%" +
-                                        (r.minutesLeft?.let { " · te faltan ~${StatsRepository.formatDuration(it)}" } ?: ""),
+                                        (r.minutesLeft?.let { " · ~${StatsRepository.formatDuration(it)} left" } ?: ""),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -194,7 +194,7 @@ fun StatsScreen(onOpenBook: (String) -> Unit, vm: StatsViewModel = viewModel(fac
                     }
                 }
                 Text(
-                    "El tiempo restante se calcula con tu ritmo de lectura real; mejora mientras más lees.",
+                    "Time left is estimated from your real reading pace; it gets more accurate the more you read.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp),
@@ -257,7 +257,7 @@ private fun WeekBars(days: List<DayStat>, goal: Int, modifier: Modifier) {
         // Goal reference line
         val goalY = baseY - plotH * (goal / maxV)
         drawLine(muted.copy(alpha = .6f), Offset(0f, goalY), Offset(size.width, goalY), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
-        val goalText = measurer.measure("Meta $goal", labelStyle)
+        val goalText = measurer.measure("Goal $goal", labelStyle)
         drawText(goalText, topLeft = Offset(size.width - goalText.size.width, goalY - goalText.size.height - 2.dp.toPx()))
 
         // Baseline
@@ -272,7 +272,7 @@ private fun WeekBars(days: List<DayStat>, goal: Int, modifier: Modifier) {
                 drawRoundRect(if (i == selected) barColor else barMuted, Offset(cx - barW / 2, baseY - h), Size(barW, h), CornerRadius(r, r))
                 drawRect(if (i == selected) barColor else barMuted, Offset(cx - barW / 2, baseY - minOf(h, r)), Size(barW, minOf(h, r)))
             }
-            val day = if (d.date == today) "Hoy" else d.date.dayOfWeek.getDisplayName(DateTextStyle.SHORT, Locale("es")).replace(".", "")
+            val day = if (d.date == today) "Today" else d.date.dayOfWeek.getDisplayName(DateTextStyle.SHORT, Locale.ENGLISH)
             val dayText = measurer.measure(day, labelStyle.copy(fontWeight = if (i == selected) FontWeight.SemiBold else FontWeight.Normal, color = if (i == selected) ink else muted))
             drawText(dayText, topLeft = Offset(cx - dayText.size.width / 2, baseY + 4.dp.toPx()))
             if (i == selected) {

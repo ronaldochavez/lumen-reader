@@ -56,8 +56,8 @@ class GeminiService(private val settings: SettingsRepository) : AiBackend {
                 finishReason(chunk)?.let { finish = it }
             }
         }
-        if (finish == "MAX_TOKENS") throw IOException("El resultado quedó incompleto; intenta de nuevo.")
-        if (finish != null && finish != "STOP") throw IOException("La IA no pudo procesar este libro ($finish).")
+        if (finish == "MAX_TOKENS") throw IOException("The result came back incomplete; try again.")
+        if (finish != null && finish != "STOP") throw IOException("The AI couldn't process this book ($finish).")
         out.toString()
     }
 
@@ -82,11 +82,12 @@ class GeminiService(private val settings: SettingsRepository) : AiBackend {
 
     override suspend fun testConnection(): String = withContext(Dispatchers.IO) {
         val body = buildJsonObject {
-            putJsonArray("contents") { add(content("user", "Responde solo con: ¡Listo para leer contigo!")) }
-            putJsonObject("generationConfig") { put("maxOutputTokens", 64); putJsonObject("thinkingConfig") { put("thinkingLevel", "low") } }
+            putJsonArray("contents") { add(content("user", "Reply only with: Ready to read with you!")) }
+            // Room for the (low) thinking budget too, or the visible reply can come back empty.
+            putJsonObject("generationConfig") { put("maxOutputTokens", 256); putJsonObject("thinkingConfig") { put("thinkingLevel", "low") } }
         }
         val text = stream(key(), body).use { r -> sseChunks(r).joinToString("") { chunkText(it) } }
-        text.ifBlank { "Conexión correcta." }
+        text.ifBlank { "Connection OK." }
     }
 
     private suspend fun key(): String = settings.geminiKey.first()?.takeIf { it.isNotBlank() } ?: throw MissingApiKeyException()
@@ -140,7 +141,7 @@ class GeminiService(private val settings: SettingsRepository) : AiBackend {
 
         private fun bookText(context: BookContext) =
             Prompts.bookHeader(context) + context.priorChapters.let { if (it.isBlank()) "" else it + "\n\n" } +
-                context.currentChapter + "\n</libro>"
+                context.currentChapter + "\n</book>"
 
         /** The book goes first so Gemini's implicit prefix caching can reuse it across follow-up questions. */
         internal fun askBody(context: BookContext, selection: String?, history: List<ChatTurn>, question: String): JsonObject =

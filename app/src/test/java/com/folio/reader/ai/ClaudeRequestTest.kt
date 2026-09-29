@@ -10,15 +10,15 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Checks the wire shape of the requests Folio sends, without calling the API. */
+/** Checks the wire shape of the requests Lumen sends, without calling the API. */
 class ClaudeRequestTest {
 
     private val context = BookContext(
-        bookTitle = "Cien años de soledad",
+        bookTitle = "One Hundred Years of Solitude",
         author = "Gabriel García Márquez",
-        priorChapters = "<capitulo n=\"1\" titulo=\"I\">\nMuchos años después…\n</capitulo>",
-        currentChapter = "<capitulo n=\"2\" titulo=\"II\" estado=\"en curso\">\nMelquíades volvió.\n[EL LECTOR VA AQUÍ.]\n</capitulo>",
-        positionLabel = "II · 12% del libro",
+        priorChapters = "<chapter n=\"1\" title=\"I\">\nMany years later…\n</chapter>",
+        currentChapter = "<chapter n=\"2\" title=\"II\" status=\"in progress\">\nMelquíades came back.\n[THE READER IS HERE.]\n</chapter>",
+        positionLabel = "II · 12% of the book",
         spineIndex = 1,
         progress = 0.12f,
     )
@@ -32,8 +32,8 @@ class ClaudeRequestTest {
 
     @Test
     fun askRequest_cachesBookText_andKeepsConversationOrder() {
-        val history = listOf(ChatTurn(true, "¿Quién es?"), ChatTurn(false, "Es el gitano."))
-        val p = ClaudeService.askParams(AiModel.OPUS, context, "Melquíades", history, "¿Y de dónde viene?")
+        val history = listOf(ChatTurn(true, "Who is he?"), ChatTurn(false, "He's the gypsy."))
+        val p = ClaudeService.askParams(AiModel.OPUS, context, "Melquíades", history, "And where does he come from?")
         val json = body(p)
 
         assertEquals("claude-opus-5-5", json["model"].asText())
@@ -44,14 +44,14 @@ class ClaudeRequestTest {
 
         val first = messages[0]["content"]
         assertEquals(3, first.size())
-        assertTrue(first[0]["text"].asText().startsWith("<libro titulo=\"Cien años de soledad\""))
+        assertTrue(first[0]["text"].asText().startsWith("<book title=\"One Hundred Years of Solitude\""))
         assertEquals("ephemeral", first[0]["cache_control"]["type"].asText())
-        assertTrue(first[1]["text"].asText().endsWith("</libro>"))
+        assertTrue(first[1]["text"].asText().endsWith("</book>"))
         assertEquals("ephemeral", first[1]["cache_control"]["type"].asText())
         assertNull(first[2]["cache_control"])
-        assertTrue(first[2]["text"].asText().contains("«Melquíades»"))
-        assertTrue(first[2]["text"].asText().contains("¿Quién es?"))
-        assertEquals("¿Y de dónde viene?", messages[2]["content"].asText())
+        assertTrue(first[2]["text"].asText().contains("\"Melquíades\""))
+        assertTrue(first[2]["text"].asText().contains("Who is he?"))
+        assertEquals("And where does he come from?", messages[2]["content"].asText())
 
         assertEquals("medium", json["output_config"]["effort"].asText())
         assertEquals("default", json["fallbacks"].asText())
@@ -61,7 +61,7 @@ class ClaudeRequestTest {
 
     @Test
     fun askRequest_onHaiku_omitsEffortAndFallbacks() {
-        val json = body(ClaudeService.askParams(AiModel.HAIKU, context, null, emptyList(), "Resumen"))
+        val json = body(ClaudeService.askParams(AiModel.HAIKU, context, null, emptyList(), "Summary"))
         assertFalse(json.has("output_config"))
         assertFalse(json.has("fallbacks"))
         // No prior chapters split: a single cached block + the question.

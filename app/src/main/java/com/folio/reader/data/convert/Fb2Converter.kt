@@ -18,7 +18,7 @@ object Fb2Converter {
         return if (isZip) {
             ZipFile(file).use { zip ->
                 val entry = zip.entries().asSequence().firstOrNull { it.name.endsWith(".fb2", ignoreCase = true) }
-                    ?: throw UnsupportedBookException("El ZIP no contiene un archivo .fb2")
+                    ?: throw UnsupportedBookException("The ZIP doesn't contain an .fb2 file")
                 zip.getInputStream(entry).use { parse(it, fallbackTitle) }
             }
         } else {
@@ -107,7 +107,7 @@ object Fb2Converter {
                 chapters += ConvertedChapter(secTitle, sb.toString())
             }
         }
-        if (chapters.isEmpty()) throw UnsupportedBookException("El FB2 no tiene contenido")
+        if (chapters.isEmpty()) throw UnsupportedBookException("The FB2 has no content")
         return ConvertedBook(title, author, lang, chapters, resources, cover)
     }
 

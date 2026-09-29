@@ -6,6 +6,7 @@ import com.folio.reader.ai.BookContext
 import com.folio.reader.ai.ChatTurn
 import com.folio.reader.ai.AiService
 import com.folio.reader.ai.FreeQuotaExceededException
+import com.folio.reader.ai.SpoilerFreeContextBuilder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -16,7 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * The "Ask Folio" conversation, shared by the text reader and the page (PDF) reader.
+ * The "Ask Lumen" conversation, shared by the text reader and the page (PDF) reader.
  * [buildContext] returns the book text up to the reader's position; it's called once per conversation
  * (with the selection's end offset, if any) so follow-up questions reuse the same prompt-cached prefix.
  */
@@ -78,13 +79,14 @@ class AskController(
             try {
                 val ctx = context ?: buildContext(start.selection?.end).also { context = it }
                 _state.update { it.copy(positionLabel = ctx.positionLabel, note = ctx.truncationNote) }
-                if (ctx.priorChapters.isBlank() && ctx.currentChapter.substringAfter('>').substringBefore("[EL LECTOR").isBlank()) {
-                    throw IllegalStateException("Este libro no tiene texto legible hasta aquí (¿PDF escaneado?), así que la IA no puede leerlo.")
+                val readText = ctx.currentChapter.substringAfter('>').substringBefore(SpoilerFreeContextBuilder.READER_MARKER)
+                if (ctx.priorChapters.isBlank() && readText.isBlank()) {
+                    throw IllegalStateException("This book has no readable text up to here (a scanned PDF?), so the AI can't read it.")
                 }
                 c.ai.ask(ctx, start.selection?.text, history, question.trim()).collect { ev ->
                     when (ev) {
                         is AiEvent.Delta -> append(ev.text)
-                        AiEvent.Refused -> append("\n\n(La IA no pudo responder esta pregunta.)")
+                        AiEvent.Refused -> append("\n\n(The AI couldn't answer this question.)")
                         AiEvent.Truncated -> append("…")
                     }
                 }

@@ -53,7 +53,7 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
             highlights = db.annotations().allHighlights().size,
             bookmarks = db.annotations().bookmarkCount(),
         )
-        val stream = context.contentResolver.openOutputStream(out) ?: throw IOException("No se pudo crear el archivo.")
+        val stream = context.contentResolver.openOutputStream(out) ?: throw IOException("Couldn't create the file.")
         ZipOutputStream(BufferedOutputStream(stream)).use { zip ->
             zip.putNextEntry(ZipEntry(MANIFEST))
             zip.write(json.encodeToString(Manifest.serializer(), manifest).toByteArray())
@@ -72,14 +72,14 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
 
     /** Reads just the manifest (the first entry), to confirm with the reader before restoring. */
     suspend fun inspect(src: Uri): Manifest = withContext(Dispatchers.IO) {
-        val stream = context.contentResolver.openInputStream(src) ?: throw IOException("No se pudo abrir el archivo.")
+        val stream = context.contentResolver.openInputStream(src) ?: throw IOException("Couldn't open the file.")
         ZipInputStream(BufferedInputStream(stream)).use { zip ->
             val entry = zip.nextEntry
-            if (entry?.name != MANIFEST) throw IOException("Este archivo no es un respaldo de Lumen.")
+            if (entry?.name != MANIFEST) throw IOException("This file isn't a Lumen backup.")
             val manifest = runCatching { json.decodeFromString(Manifest.serializer(), zip.readBytes().decodeToString()) }
-                .getOrElse { throw IOException("El respaldo está dañado.") }
+                .getOrElse { throw IOException("The backup is damaged.") }
             if (manifest.format > FORMAT || manifest.dbVersion > AppDatabase.VERSION) {
-                throw IOException("Este respaldo es de una versión más nueva de Lumen. Actualiza la app primero.")
+                throw IOException("This backup comes from a newer version of Lumen. Update the app first.")
             }
             manifest
         }
@@ -95,7 +95,7 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
         try {
             unzip(src, staging)
             val stagedDb = File(staging, DB_ENTRY)
-            if (!stagedDb.exists()) throw IOException("El respaldo no contiene la base de datos.")
+            if (!stagedDb.exists()) throw IOException("The backup doesn't contain the database.")
             val newRoot = books.booksRoot.canonicalPath
             if (manifest.booksRoot != newRoot) {
                 SQLiteDatabase.openDatabase(stagedDb.path, null, SQLiteDatabase.OPEN_READWRITE).use {
@@ -122,13 +122,13 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
 
     private fun unzip(src: Uri, into: File) {
         val root = into.canonicalPath + File.separator
-        val stream = context.contentResolver.openInputStream(src) ?: throw IOException("No se pudo abrir el archivo.")
+        val stream = context.contentResolver.openInputStream(src) ?: throw IOException("Couldn't open the file.")
         ZipInputStream(BufferedInputStream(stream)).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 val out = File(into, entry.name).canonicalFile
                 // Never write outside the staging folder ("zip slip").
-                if (!out.path.startsWith(root)) throw IOException("El respaldo contiene rutas no válidas.")
+                if (!out.path.startsWith(root)) throw IOException("The backup contains invalid paths.")
                 if (entry.isDirectory) out.mkdirs()
                 else {
                     out.parentFile?.mkdirs()
@@ -146,7 +146,7 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
             b.id to db.books().chapters(b.id).associate { it.spineIndex to SpoilerFreeContextBuilder.label(it) }
         }
         val md = highlightsMarkdown(bookList, highlights, { bookId, spine -> chapterLabels[bookId]?.get(spine) }, Date())
-        val stream = context.contentResolver.openOutputStream(out) ?: throw IOException("No se pudo crear el archivo.")
+        val stream = context.contentResolver.openOutputStream(out) ?: throw IOException("Couldn't create the file.")
         stream.bufferedWriter().use { it.write(md) }
         highlights.size
     }
@@ -161,7 +161,7 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
         const val FORMAT = 1
         private const val KEEP_PREVIOUS_MS = 7L * 24 * 60 * 60 * 1000
 
-        /** "1 libro", "3 libros". */
+        /** "1 book", "3 books". */
         fun count(n: Int, one: String, many: String) = "$n ${if (n == 1) one else many}"
         private const val MANIFEST = "lumen-backup.json"
         private const val DB_ENTRY = "folio.db"
@@ -169,10 +169,10 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
         private val json = Json { ignoreUnknownKeys = true }
 
         fun backupFileName(now: Date = Date()) =
-            "Lumen-respaldo-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now) + ".zip"
+            "Lumen-backup-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now) + ".zip"
 
         fun highlightsFileName(now: Date = Date()) =
-            "Lumen-subrayados-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now) + ".md"
+            "Lumen-highlights-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now) + ".md"
 
         internal fun highlightsMarkdown(
             books: List<BookEntity>,
@@ -181,10 +181,10 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
             now: Date,
         ): String = buildString {
             val byBook = highlights.groupBy { it.bookId }
-            val date = SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es")).format(now)
-            appendLine("# Mis subrayados en Lumen")
+            val date = SimpleDateFormat("MMMM d, yyyy", Locale.US).format(now)
+            appendLine("# My highlights in Lumen")
             appendLine()
-            appendLine("Exportado el $date · ${count(highlights.size, "subrayado", "subrayados")} en ${count(byBook.size, "libro", "libros")}")
+            appendLine("Exported on $date · ${count(highlights.size, "highlight", "highlights")} in ${count(byBook.size, "book", "books")}")
             for (book in books) {
                 val list = byBook[book.id] ?: continue
                 appendLine()
@@ -195,13 +195,13 @@ class BackupManager(private val context: Context, private val db: AppDatabase, p
                     if (h.spineIndex != lastChapter) {
                         lastChapter = h.spineIndex
                         appendLine()
-                        appendLine("### ${chapterLabel(book.id, h.spineIndex) ?: "Sección ${h.spineIndex + 1}"}")
+                        appendLine("### ${chapterLabel(book.id, h.spineIndex) ?: "Section ${h.spineIndex + 1}"}")
                     }
                     appendLine()
                     h.text.trim().lines().forEach { appendLine("> $it".trimEnd()) }
                     h.note?.takeIf { it.isNotBlank() }?.let {
                         appendLine()
-                        appendLine("**Nota:** ${it.trim()}")
+                        appendLine("**Note:** ${it.trim()}")
                     }
                 }
             }

@@ -11,27 +11,27 @@ import org.junit.Test
 class GeminiRequestTest {
 
     private val context = BookContext(
-        bookTitle = "Cien años de soledad",
+        bookTitle = "One Hundred Years of Solitude",
         author = "Gabriel García Márquez",
-        priorChapters = "<capitulo n=\"1\">\nMuchos años después…\n</capitulo>",
-        currentChapter = "<capitulo n=\"2\" estado=\"en curso\">\nMelquíades volvió.\n[EL LECTOR VA AQUÍ.]\n</capitulo>",
-        positionLabel = "II · 12% del libro",
+        priorChapters = "<chapter n=\"1\">\nMany years later…\n</chapter>",
+        currentChapter = "<chapter n=\"2\" status=\"in progress\">\nMelquíades came back.\n[THE READER IS HERE.]\n</chapter>",
+        positionLabel = "II · 12% of the book",
         spineIndex = 1,
         progress = 0.12f,
     )
 
     @Test
     fun askBody_putsBookFirst_andAlternatesRoles() {
-        val history = listOf(ChatTurn(true, "¿Quién es?"), ChatTurn(false, "Es el gitano."))
-        val body = GeminiService.askBody(context, "Melquíades", history, "¿Y de dónde viene?")
+        val history = listOf(ChatTurn(true, "Who is he?"), ChatTurn(false, "He's the gypsy."))
+        val body = GeminiService.askBody(context, "Melquíades", history, "And where does he come from?")
 
         assertTrue(body["systemInstruction"]!!.jsonObject["parts"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content.contains("Spoiler protection"))
         val contents = body["contents"]!!.jsonArray
         assertEquals(listOf("user", "model", "user"), contents.map { it.jsonObject["role"]!!.jsonPrimitive.content })
         val firstParts = contents[0].jsonObject["parts"]!!.jsonArray.map { it.jsonObject["text"]!!.jsonPrimitive.content }
-        assertTrue(firstParts[0].startsWith("<libro titulo=\"Cien años de soledad\""))
-        assertTrue(firstParts[0].contains("Muchos años después") && firstParts[0].endsWith("</libro>"))
-        assertTrue(firstParts[1].contains("«Melquíades»") && firstParts[1].contains("¿Quién es?"))
+        assertTrue(firstParts[0].startsWith("<book title=\"One Hundred Years of Solitude\""))
+        assertTrue(firstParts[0].contains("Many years later") && firstParts[0].endsWith("</book>"))
+        assertTrue(firstParts[1].contains("\"Melquíades\"") && firstParts[1].contains("Who is he?"))
         assertEquals("low", body["generationConfig"]!!.jsonObject["thinkingConfig"]!!.jsonObject["thinkingLevel"]!!.jsonPrimitive.content)
     }
 
@@ -48,13 +48,13 @@ class GeminiRequestTest {
     @Test
     fun streamChunks_textSkipsThoughts_andReadsFinishReason() {
         val sse = """
-            data: {"candidates":[{"content":{"role":"model","parts":[{"text":"pensando","thought":true},{"text":"Es **Melquíades**"}]}}]}
+            data: {"candidates":[{"content":{"role":"model","parts":[{"text":"thinking","thought":true},{"text":"It's **Melquíades**"}]}}]}
 
-            data: {"candidates":[{"content":{"role":"model","parts":[{"text":", el gitano."}]},"finishReason":"STOP"}]}
+            data: {"candidates":[{"content":{"role":"model","parts":[{"text":", the gypsy."}]},"finishReason":"STOP"}]}
 
         """.trimIndent()
         val chunks = GeminiService.sseChunks(sse.reader().buffered()).toList()
-        assertEquals("Es **Melquíades**, el gitano.", chunks.joinToString("") { GeminiService.chunkText(it) })
+        assertEquals("It's **Melquíades**, the gypsy.", chunks.joinToString("") { GeminiService.chunkText(it) })
         assertEquals("STOP", GeminiService.finishReason(chunks.last()))
 
         val blocked = Json.parseToJsonElement("""{"promptFeedback":{"blockReason":"PROHIBITED_CONTENT"}}""").jsonObject
@@ -71,7 +71,7 @@ class GeminiRequestTest {
             400,
             """{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT","details":[{"@type":"x","reason":"API_KEY_INVALID"}]}}""",
         )
-        assertEquals("Tu key de Gemini no es válida. Revísala en Ajustes.", AiService.friendlyError(bad))
+        assertEquals("Your Gemini key isn't valid. Check it in Settings.", AiService.friendlyError(bad))
         assertTrue(AiService.needsSetup(bad))
     }
 }

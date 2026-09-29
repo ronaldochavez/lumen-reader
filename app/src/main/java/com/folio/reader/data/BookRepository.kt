@@ -66,10 +66,10 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         val id = UUID.randomUUID().toString()
         val dir = bookDir(id).apply { mkdirs() }
         val fileName = displayName(uri)
-        val baseTitle = fileName.substringBeforeLast('.').removeSuffix(".fb2").replace('_', ' ').trim().ifBlank { "Sin título" }
+        val baseTitle = fileName.substringBeforeLast('.').removeSuffix(".fb2").replace('_', ' ').trim().ifBlank { "Untitled" }
         val tmp = File(context.cacheDir, "import-$id")
         try {
-            val input = context.contentResolver.openInputStream(uri) ?: error("No se pudo abrir el archivo")
+            val input = context.contentResolver.openInputStream(uri) ?: error("Couldn't open the file")
             input.use { src -> tmp.outputStream().use { src.copyTo(it) } }
 
             when (val kind = FormatDetector.detect(tmp, fileName)) {
@@ -118,7 +118,7 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         val spineByHref = parsed.spine.withIndex().associate { it.value.href to it.index }
         val toc = parsed.toc.mapIndexedNotNull { ord, t ->
             val spine = spineByHref[t.href] ?: return@mapIndexedNotNull null
-            TocEntity(bookId = id, ord = ord, title = t.title.ifBlank { "Sección ${spine + 1}" }, depth = t.depth, spineIndex = spine, fragment = t.fragment)
+            TocEntity(bookId = id, ord = ord, title = t.title.ifBlank { "Section ${spine + 1}" }, depth = t.depth, spineIndex = spine, fragment = t.fragment)
         }
         save(
             BookEntity(
@@ -149,7 +149,7 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
             BookEntity(
                 id = id,
                 title = book.title,
-                author = book.author.ifBlank { if (format == BookFormat.COMIC) "Cómic" else "Autor desconocido" },
+                author = book.author.ifBlank { if (format == BookFormat.COMIC) "Comic" else "Unknown author" },
                 language = null,
                 coverPath = book.coverHref?.let { File(dir, it).absolutePath },
                 addedAt = System.currentTimeMillis(),
@@ -171,7 +171,7 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
             context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
                 if (c.moveToFirst()) c.getString(0) else null
             }
-        }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "libro"
+        }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "book"
 
     private fun unzip(zip: File, dest: File) {
         val destPath = dest.canonicalPath + File.separator

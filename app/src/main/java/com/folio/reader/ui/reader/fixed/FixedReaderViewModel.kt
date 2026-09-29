@@ -196,7 +196,7 @@ class FixedReaderViewModel(savedState: SavedStateHandle, private val c: AppConta
     private val ttsListener = object : TtsPlayer.Listener {
         override fun onTtsReady(ok: Boolean) {
             if (!ok) {
-                _readAloud.update { it.copy(playing = false, error = "Este dispositivo no tiene un motor de voz. Instala «Speech Services by Google» desde Play Store.") }
+                _readAloud.update { it.copy(playing = false, error = "This device has no text-to-speech engine. Install \"Speech Services by Google\" from the Play Store.") }
                 return
             }
             tts?.setLanguage(_ui.value.book?.language)
@@ -214,7 +214,7 @@ class FixedReaderViewModel(savedState: SavedStateHandle, private val c: AppConta
         }
 
         override fun onTtsError() {
-            _readAloud.update { it.copy(playing = false, error = "La voz se detuvo por un error del motor de texto a voz.") }
+            _readAloud.update { it.copy(playing = false, error = "The voice stopped because of a text-to-speech engine error.") }
         }
     }
 
@@ -292,7 +292,7 @@ class FixedReaderViewModel(savedState: SavedStateHandle, private val c: AppConta
         _ui.update { it.copy(sheet = ReaderSheet.ASK, chromeVisible = false) }
     }
 
-    /** "¿Dónde me quedé?": an empty chat about the book so far; the reader writes the first question. */
+    /** "Where was I?": an empty chat about the book so far; the reader writes the first question. */
     fun openChat() = openAsk()
 
     fun askQuestion(q: String) = askController.ask(q)
@@ -302,7 +302,7 @@ class FixedReaderViewModel(savedState: SavedStateHandle, private val c: AppConta
     /** Pages before the current one, plus the whole current page (it's all on screen). */
     private suspend fun buildContext(): BookContext {
         val s = _ui.value
-        val book = s.book ?: error("Libro no cargado")
+        val book = s.book ?: error("Book not loaded")
         val current = c.books.chapterText(bookId, s.spineIndex)
         return c.contextBuilder.build(book, s.chapters, s.spineIndex, s.progress, current, c.ai.maxContextChars())
     }

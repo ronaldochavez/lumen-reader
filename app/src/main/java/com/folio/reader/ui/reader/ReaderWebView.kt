@@ -33,11 +33,11 @@ fun chapterUrl(bookId: String, href: String): String =
 data class SelectionInfo(val text: String, val start: Int, val end: Int)
 
 enum class SelectionAction(val title: String) {
-    ASK("Preguntar a la IA"),
-    DEFINE("Definir"),
-    HIGHLIGHT("Subrayar"),
-    NOTE("Nota"),
-    COPY("Copiar"),
+    ASK("Ask AI"),
+    DEFINE("Define"),
+    HIGHLIGHT("Highlight"),
+    NOTE("Note"),
+    COPY("Copy"),
 }
 
 sealed interface BridgeEvent {

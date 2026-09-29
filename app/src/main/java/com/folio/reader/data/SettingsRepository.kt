@@ -22,19 +22,19 @@ import javax.crypto.spec.GCMParameterSpec
 private val Context.dataStore by preferencesDataStore(name = "folio_settings")
 
 enum class ReaderTheme(val label: String, val background: Long, val foreground: Long, val link: Long) {
-    PAPER("Papel", 0xFFFFFCF7, 0xFF2A1F2D, 0xFF5B3E96),
+    PAPER("Paper", 0xFFFFFCF7, 0xFF2A1F2D, 0xFF5B3E96),
     SEPIA("Sepia", 0xFFF4EAD5, 0xFF433422, 0xFF8A4B2A),
-    NIGHT("Noche", 0xFF17131C, 0xFFDAD2E2, 0xFFB9A2F0),
-    BLACK("Negro", 0xFF000000, 0xFFD4D4D6, 0xFFA9B8D0);
+    NIGHT("Night", 0xFF17131C, 0xFFDAD2E2, 0xFFB9A2F0),
+    BLACK("Black", 0xFF000000, 0xFFD4D4D6, 0xFFA9B8D0);
 
     val isDark get() = this == NIGHT || this == BLACK
 }
 
 enum class AppTheme(val label: String) {
-    SYSTEM("Sistema"),
-    LIGHT("Claro"),
-    DARK("Oscuro"),
-    BLACK("Negro"),
+    SYSTEM("System"),
+    LIGHT("Light"),
+    DARK("Dark"),
+    BLACK("Black"),
 }
 
 data class ReaderSettings(
@@ -46,9 +46,9 @@ data class ReaderSettings(
 )
 
 enum class AiModel(val id: String, val label: String, val description: String, val maxContextChars: Int) {
-    OPUS("claude-opus-5-5", "Claude Opus 5.5", "El más preciso. Recomendado.", 2_800_000),
-    SONNET("claude-sonnet-5-5", "Claude Sonnet 5.5", "Más rápido y económico.", 2_800_000),
-    HAIKU("claude-haiku-4-5", "Claude Haiku 4.5", "El más barato. Contexto menor (~500 págs).", 560_000);
+    OPUS("claude-opus-5-5", "Claude Opus 5.5", "The most accurate. Recommended.", 2_800_000),
+    SONNET("claude-sonnet-5-5", "Claude Sonnet 5.5", "Faster and cheaper.", 2_800_000),
+    HAIKU("claude-haiku-4-5", "Claude Haiku 4.5", "The cheapest. Smaller context (~500 pages).", 560_000);
 
     companion object {
         fun fromId(id: String?) = entries.firstOrNull { it.id == id } ?: OPUS

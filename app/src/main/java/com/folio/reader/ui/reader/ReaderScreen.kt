@@ -157,7 +157,7 @@ fun ReaderScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp),
             ) {
                 Text(
-                    "${ui.page + 1} de ${ui.pageCount}",
+                    "${ui.page + 1} of ${ui.pageCount}",
                     style = MaterialTheme.typography.labelMedium,
                     color = ink.copy(alpha = .45f),
                     modifier = Modifier.weight(1f),
@@ -196,7 +196,7 @@ fun ReaderScreen(
         ) {
             BottomChrome(
                 progress = ui.progress,
-                label = "${ui.chapterTitle} · pág. ${ui.page + 1} de ${ui.pageCount}" + timeLeftLabel(ui.minutesLeft),
+                label = "${ui.chapterTitle} · p. ${ui.page + 1} of ${ui.pageCount}" + timeLeftLabel(ui.minutesLeft),
                 paper = paper,
                 ink = ink,
                 accent = accent,
@@ -357,10 +357,10 @@ internal fun TopChrome(
     data class Action(val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val onClick: () -> Unit)
     // Secondary actions: shown as icons when there's room (tablets), otherwise in the "⋮" menu.
     val secondary = listOfNotNull(
-        onGraph?.let { Action(Icons.Rounded.Hub, "Personajes", it) },
-        onEncyclopedia?.let { Action(Icons.AutoMirrored.Rounded.MenuBook, "Enciclopedia", it) },
-        Action(Icons.Rounded.EditNote, "Subrayados y marcadores", onAnnotations),
-        Action(Icons.AutoMirrored.Rounded.FormatListBulleted, "Índice", onToc),
+        onGraph?.let { Action(Icons.Rounded.Hub, "Characters", it) },
+        onEncyclopedia?.let { Action(Icons.AutoMirrored.Rounded.MenuBook, "Encyclopedia", it) },
+        Action(Icons.Rounded.EditNote, "Highlights and bookmarks", onAnnotations),
+        Action(Icons.AutoMirrored.Rounded.FormatListBulleted, "Contents", onToc),
     )
     var menu by remember { mutableStateOf(false) }
     Surface(color = paper, contentColor = ink, shadowElevation = 6.dp, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)) {
@@ -372,23 +372,23 @@ internal fun TopChrome(
                     .padding(horizontal = 4.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Atrás") }
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(subtitle, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = .6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (onSearch != null) IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Buscar en el libro") }
+                if (onSearch != null) IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search in book") }
                 if (wide) secondary.forEach { a -> IconButton(onClick = a.onClick) { Icon(a.icon, a.label) } }
                 IconButton(onClick = onBookmark) {
                     Icon(
                         if (bookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                        "Marcador",
+                        "Bookmark",
                         tint = if (bookmarked) MaterialTheme.colorScheme.secondary else ink,
                     )
                 }
                 if (!wide) {
                     Box {
-                        IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "Más") }
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More") }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             secondary.forEach { a ->
                                 DropdownMenuItem(
@@ -437,7 +437,7 @@ internal fun BottomChrome(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPrevChapter) { Icon(Icons.Rounded.SkipPrevious, "Capítulo anterior") }
+                IconButton(onClick = onPrevChapter) { Icon(Icons.Rounded.SkipPrevious, "Previous chapter") }
                 Slider(
                     value = if (dragging) dragValue else progress,
                     onValueChange = { dragging = true; dragValue = it },
@@ -445,7 +445,7 @@ internal fun BottomChrome(
                     colors = SliderDefaults.colors(thumbColor = accent, activeTrackColor = accent, inactiveTrackColor = ink.copy(alpha = .15f)),
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = onNextChapter) { Icon(Icons.Rounded.SkipNext, "Capítulo siguiente") }
+                IconButton(onClick = onNextChapter) { Icon(Icons.Rounded.SkipNext, "Next chapter") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (onSettings != null) {
@@ -460,7 +460,7 @@ internal fun BottomChrome(
                     Surface(onClick = onListen, shape = CircleShape, color = ink.copy(alpha = .07f), contentColor = ink) {
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Headphones, null, Modifier.size(18.dp))
-                            Text("  Escuchar", style = MaterialTheme.typography.labelLarge)
+                            Text("  Listen", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -473,7 +473,7 @@ internal fun BottomChrome(
                     ) {
                         Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("¿Dónde me quedé?")
+                        Text("Where was I?")
                     }
                 }
             }
@@ -498,10 +498,10 @@ internal fun ReturnPill(
                 Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.AutoMirrored.Rounded.Undo, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Volver a donde ibas · ${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelLarge)
+                    Text("Back to where you were · ${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelLarge)
                 }
             }
-            IconButton(onClick = onStay) { Icon(Icons.Rounded.Close, "Quedarme aquí", Modifier.size(18.dp)) }
+            IconButton(onClick = onStay) { Icon(Icons.Rounded.Close, "Stay here", Modifier.size(18.dp)) }
         }
     }
 }
@@ -530,7 +530,7 @@ internal fun ReadAloudBar(
             Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Headphones, null, Modifier.padding(start = 8.dp).size(18.dp), tint = accent)
                 IconButton(onClick = if (state.playing) onPause else onResume) {
-                    Icon(if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.playing) "Pausar" else "Continuar")
+                    Icon(if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.playing) "Pause" else "Resume")
                 }
                 Surface(onClick = onRate, shape = CircleShape, color = ink.copy(alpha = .07f)) {
                     val r = state.rate
@@ -540,7 +540,7 @@ internal fun ReadAloudBar(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }
-                IconButton(onClick = onStop) { Icon(Icons.Rounded.Close, "Detener lectura") }
+                IconButton(onClick = onStop) { Icon(Icons.Rounded.Close, "Stop reading aloud") }
             }
             state.error?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
@@ -570,7 +570,7 @@ internal fun TrackVisibility(onVisible: (Boolean) -> Unit) {
 }
 
 internal fun timeLeftLabel(minutes: Long?): String =
-    if (minutes == null || minutes <= 0) "" else " · te faltan ~" + com.folio.reader.data.StatsRepository.formatDuration(minutes)
+    if (minutes == null || minutes <= 0) "" else " · ~" + com.folio.reader.data.StatsRepository.formatDuration(minutes) + " left"
 
 @Composable
 internal fun ImmersiveMode(showBars: Boolean, lightBars: Boolean) {

@@ -83,17 +83,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
+import com.folio.reader.ai.LoreKind
+
 private data class Kind(val id: String, val label: String, val singular: String, val icon: ImageVector)
 
 private val kinds = listOf(
-    Kind("lugar", "Lugares", "Lugar", Icons.Rounded.Place),
-    Kind("objeto", "Objetos", "Objeto", Icons.Rounded.Category),
-    Kind("termino", "Términos", "Término", Icons.Rounded.Lightbulb),
-    Kind("faccion", "Facciones", "Facción", Icons.Rounded.Groups),
-    Kind("evento", "Eventos", "Evento", Icons.Rounded.Event),
+    Kind(LoreKind.PLACE, "Places", "Place", Icons.Rounded.Place),
+    Kind(LoreKind.OBJECT, "Objects", "Object", Icons.Rounded.Category),
+    Kind(LoreKind.TERM, "Terms", "Term", Icons.Rounded.Lightbulb),
+    Kind(LoreKind.FACTION, "Factions", "Faction", Icons.Rounded.Groups),
+    Kind(LoreKind.EVENT, "Events", "Event", Icons.Rounded.Event),
 )
 
-private fun kindOf(id: String) = kinds.firstOrNull { it.id == id } ?: kinds[2]
+private fun kindOf(id: String) = kinds.firstOrNull { it.id == LoreKind.canonical(id) } ?: kinds[2]
 
 data class EncyclopediaUiState(
     val book: BookEntity? = null,
@@ -142,7 +144,7 @@ class EncyclopediaViewModel(savedState: SavedStateHandle, private val c: AppCont
         _state.update { it.copy(loading = true, error = null, needsKey = false) }
         viewModelScope.launch {
             try {
-                val book = c.books.get(bookId) ?: error("Libro no encontrado")
+                val book = c.books.get(bookId) ?: error("Book not found")
                 val chapters = c.books.chapters(bookId)
                 val snap = c.snapshots.get(bookId)
                 val spine = snap?.spineIndex ?: book.spineIndex
@@ -183,13 +185,13 @@ fun EncyclopediaScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Enciclopedia", style = MaterialTheme.typography.headlineSmall)
+                        Text("Encyclopedia", style = MaterialTheme.typography.headlineSmall)
                         Text(s.book?.title.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                 },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Atrás") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") } },
                 actions = {
-                    if (s.data != null && !s.loading) IconButton(onClick = vm::generate) { Icon(Icons.Rounded.Refresh, "Actualizar hasta mi página") }
+                    if (s.data != null && !s.loading) IconButton(onClick = vm::generate) { Icon(Icons.Rounded.Refresh, "Update to my page") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
@@ -200,16 +202,16 @@ fun EncyclopediaScreen(
             when {
                 s.loading -> Centered {
                     CircularProgressIndicator()
-                    Text("Catalogando lugares, objetos y términos…", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 24.dp))
-                    Text("Hasta ${s.currentLabel}. En libros largos puede tardar un minuto o dos.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
+                    Text("Cataloging places, objects and terms…", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 24.dp))
+                    Text("Up to ${s.currentLabel}. Long books can take a minute or two.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
                 }
                 data == null -> Centered {
                     Box(Modifier.size(104.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
                         Icon(Icons.AutoMirrored.Rounded.MenuBook, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
                     }
-                    Text("El mundo del libro", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 24.dp))
+                    Text("The world of the book", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 24.dp))
                     Text(
-                        "Lugares, objetos, términos, facciones y eventos, cada uno con su ficha. Solo con lo que has leído.",
+                        "Places, objects, terms, factions and events, each with its own entry. Only from what you've read.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -217,26 +219,26 @@ fun EncyclopediaScreen(
                     )
                     Button(onClick = vm::generate, shape = CircleShape, modifier = Modifier.padding(top = 24.dp)) {
                         Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
-                        Text("Crear enciclopedia")
+                        Text("Create encyclopedia")
                     }
                     Text(s.currentLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                     s.error?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 16.dp))
-                        if (s.needsKey) TextButton(onClick = onOpenSettings) { Text("Ir a Ajustes") }
+                        if (s.needsKey) TextButton(onClick = onOpenSettings) { Text("Go to Settings") }
                     }
                 }
                 s.aheadOfReader && !reveal -> Centered {
                     Icon(Icons.Rounded.Shield, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
-                    Text("Cuidado: posibles spoilers", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
+                    Text("Careful: possible spoilers", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
                     Text(
-                        "La enciclopedia guardada llega hasta ${s.generatedAt}, más allá de donde estás ahora (${s.currentLabel}).",
+                        "The saved encyclopedia goes up to ${s.generatedAt}, past where you are now (${s.currentLabel}).",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = 8.dp),
                     )
-                    Button(onClick = vm::generate, shape = CircleShape, modifier = Modifier.padding(top = 20.dp)) { Text("Rehacer hasta mi página") }
-                    OutlinedButton(onClick = { reveal = true }, shape = CircleShape, modifier = Modifier.padding(top = 8.dp)) { Text("Ver de todos modos") }
+                    Button(onClick = vm::generate, shape = CircleShape, modifier = Modifier.padding(top = 20.dp)) { Text("Rebuild up to my page") }
+                    OutlinedButton(onClick = { reveal = true }, shape = CircleShape, modifier = Modifier.padding(top = 8.dp)) { Text("Show it anyway") }
                 }
                 else -> EntryList(s, data, vm::generate)
             }
@@ -251,7 +253,7 @@ private fun EntryList(s: EncyclopediaUiState, data: Encyclopedia, onRegenerate: 
     var expanded by remember { mutableStateOf<String?>(null) }
     val q = query.trim().lowercase()
     val visible = data.entries
-        .filter { filter == null || it.kind == filter }
+        .filter { filter == null || it.kindKey == filter }
         .filter { q.isEmpty() || it.name.lowercase().contains(q) || it.aliases.any { a -> a.lowercase().contains(q) } }
         .sortedWith(compareByDescending<LoreEntry> { it.importance }.thenBy { it.name })
 
@@ -265,11 +267,11 @@ private fun EntryList(s: EncyclopediaUiState, data: Encyclopedia, onRegenerate: 
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = Folio.Mint)
                     Text(
-                        if (s.outdated) "  Hasta ${s.generatedAt}. Avanzaste desde entonces." else "  Sin spoilers · hasta ${s.generatedAt}",
+                        if (s.outdated) "  Up to ${s.generatedAt}. You've read further since." else "  No spoilers · up to ${s.generatedAt}",
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.weight(1f),
                     )
-                    if (s.outdated) TextButton(onClick = onRegenerate) { Text("Actualizar") }
+                    if (s.outdated) TextButton(onClick = onRegenerate) { Text("Update") }
                 }
             }
             s.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
@@ -278,7 +280,7 @@ private fun EntryList(s: EncyclopediaUiState, data: Encyclopedia, onRegenerate: 
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Buscar en la enciclopedia…") },
+                placeholder = { Text("Search the encyclopedia…") },
                 leadingIcon = { Icon(Icons.Rounded.Search, null) },
                 singleLine = true,
                 shape = CircleShape,
@@ -287,11 +289,11 @@ private fun EntryList(s: EncyclopediaUiState, data: Encyclopedia, onRegenerate: 
         }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(kinds.filter { k -> data.entries.any { it.kind == k.id } }) { k ->
+                items(kinds.filter { k -> data.entries.any { it.kindKey == k.id } }) { k ->
                     FilterChip(
                         selected = filter == k.id,
                         onClick = { filter = if (filter == k.id) null else k.id },
-                        label = { Text("${k.label} · ${data.entries.count { it.kind == k.id }}") },
+                        label = { Text("${k.label} · ${data.entries.count { it.kindKey == k.id }}") },
                         leadingIcon = { Icon(k.icon, null, Modifier.size(16.dp)) },
                         shape = CircleShape,
                     )
@@ -299,7 +301,7 @@ private fun EntryList(s: EncyclopediaUiState, data: Encyclopedia, onRegenerate: 
             }
         }
         if (visible.isEmpty()) item {
-            Text("Nada por aquí.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+            Text("Nothing here.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
         }
         items(visible, key = { it.id }) { e ->
             EntryCard(e, expanded == e.id) { expanded = if (expanded == e.id) null else e.id }
@@ -320,7 +322,7 @@ private fun EntryCard(e: LoreEntry, open: Boolean, onToggle: () -> Unit) {
                     Text(e.name, style = MaterialTheme.typography.titleMedium, fontFamily = SerifDisplay)
                     Text(
                         kind.singular +
-                            (e.firstAppearance.takeIf { it.isNotBlank() }?.let { " · aparece en $it" } ?: ""),
+                            (e.firstAppearance.takeIf { it.isNotBlank() }?.let { " · first in $it" } ?: ""),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -329,17 +331,17 @@ private fun EntryCard(e: LoreEntry, open: Boolean, onToggle: () -> Unit) {
             Text(e.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 10.dp))
             if (open) {
                 if (e.aliases.isNotEmpty()) {
-                    Text("También: " + e.aliases.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    Text("Also: " + e.aliases.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                 }
                 if (e.facts.isNotEmpty()) {
-                    Text("Lo que sabemos", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                    Text("What we know", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
                     e.facts.forEach { f -> Text("•  $f", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp)) }
                 }
                 if (e.related.isNotEmpty()) {
-                    Text("Relacionado con: " + e.related.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
+                    Text("Related to: " + e.related.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
                 }
             } else if (e.facts.isNotEmpty() || e.related.isNotEmpty()) {
-                Text("Ver más", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+                Text("Show more", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
             }
         }
     }

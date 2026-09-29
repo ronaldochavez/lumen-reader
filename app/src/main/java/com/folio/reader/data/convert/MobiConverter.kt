@@ -19,7 +19,7 @@ object MobiConverter {
     fun convert(file: File, fallbackTitle: String): ConvertedBook {
         val data = file.readBytes()
         if (data.size < 86 || String(data, 60, 8, Charsets.ISO_8859_1) !in setOf("BOOKMOBI", "TEXtREAd")) {
-            throw UnsupportedBookException("No es un archivo MOBI válido")
+            throw UnsupportedBookException("Not a valid MOBI file")
         }
         val pdb = PalmDb(data)
         val rec0 = pdb.record(0)
@@ -27,7 +27,7 @@ object MobiConverter {
         val textRecordCount = u16(rec0, 8)
         val encryption = u16(rec0, 12)
         if (encryption != 0) {
-            throw UnsupportedBookException("Este libro tiene DRM (protección anticopia) y no se puede abrir. Solo se admiten archivos Kindle sin DRM.")
+            throw UnsupportedBookException("This book has DRM (copy protection) and can't be opened. Only DRM-free Kindle files are supported.")
         }
 
         val hasMobiHeader = rec0.size > 20 && String(rec0, 16, 4, Charsets.ISO_8859_1) == "MOBI"
@@ -55,8 +55,8 @@ object MobiConverter {
                 when (compression) {
                     1 -> rec
                     2 -> palmDocDecompress(rec)
-                    17480 -> throw UnsupportedBookException("Este MOBI usa compresión HUFF/CDIC, que aún no se admite. Conviértelo a EPUB con Calibre.")
-                    else -> throw UnsupportedBookException("Compresión MOBI desconocida ($compression)")
+                    17480 -> throw UnsupportedBookException("This MOBI uses HUFF/CDIC compression, which isn't supported yet. Convert it to EPUB with Calibre.")
+                    else -> throw UnsupportedBookException("Unknown MOBI compression ($compression)")
                 }
             )
         }
@@ -77,7 +77,7 @@ object MobiConverter {
 
         val isKf8 = version >= 8 && exth[KF8_BOUNDARY] == null
         val chapters = if (isKf8) kf8Chapters(html, ::imageRecord) else mobi6Chapters(html, ::imageRecord)
-        if (chapters.isEmpty()) throw UnsupportedBookException("El libro no tiene contenido legible")
+        if (chapters.isEmpty()) throw UnsupportedBookException("The book has no readable content")
         return ConvertedBook(
             title = title?.ifBlank { null } ?: fallbackTitle,
             author = author,

@@ -95,17 +95,19 @@ import kotlin.math.absoluteValue
 import kotlin.math.hypot
 import kotlin.math.min
 
+import com.folio.reader.ai.RelationType
+
 private val relationTypes = linkedMapOf(
-    "familia" to ("Familia" to Color(0xFFF2765A)),
-    "pareja" to ("Pareja" to Color(0xFFE07BA5)),
-    "amistad" to ("Amistad" to Color(0xFF4FAE8A)),
-    "alianza" to ("Alianza" to Color(0xFF6C93DB)),
-    "rivalidad" to ("Rivalidad" to Color(0xFFC8423B)),
-    "trabajo" to ("Trabajo" to Color(0xFFD9A232)),
-    "otro" to ("Otro" to Color(0xFF9A8FA0)),
+    RelationType.FAMILY to ("Family" to Color(0xFFF2765A)),
+    RelationType.ROMANCE to ("Romance" to Color(0xFFE07BA5)),
+    RelationType.FRIENDSHIP to ("Friendship" to Color(0xFF4FAE8A)),
+    RelationType.ALLIANCE to ("Alliance" to Color(0xFF6C93DB)),
+    RelationType.RIVALRY to ("Rivalry" to Color(0xFFC8423B)),
+    RelationType.WORK to ("Work" to Color(0xFFD9A232)),
+    RelationType.OTHER to ("Other" to Color(0xFF9A8FA0)),
 )
 
-private fun relationColor(type: String) = relationTypes[type]?.second ?: Color(0xFF9A8FA0)
+private fun relationColor(type: String) = relationTypes[RelationType.canonical(type)]?.second ?: Color(0xFF9A8FA0)
 
 private val groupColors = listOf(
     Color(0xFF5B3E96), Color(0xFF2F7D6D), Color(0xFF34457A), Color(0xFF8C3B5E),
@@ -132,7 +134,7 @@ fun CharacterGraphScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Personajes", style = MaterialTheme.typography.headlineSmall)
+                        Text("Characters", style = MaterialTheme.typography.headlineSmall)
                         Text(
                             state.book?.title.orEmpty(),
                             style = MaterialTheme.typography.bodySmall,
@@ -141,10 +143,10 @@ fun CharacterGraphScreen(
                         )
                     }
                 },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Atrás") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") } },
                 actions = {
                     if (state.graph != null && !state.loading) {
-                        IconButton(onClick = vm::generate) { Icon(Icons.Rounded.Refresh, "Actualizar hasta mi página") }
+                        IconButton(onClick = vm::generate) { Icon(Icons.Rounded.Refresh, "Update to my page") }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -163,7 +165,7 @@ fun CharacterGraphScreen(
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp))
                     }
                     SingleChoiceSegmentedButtonRow(Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth()) {
-                        listOf("Mapa", "Lista").forEachIndexed { i, label ->
+                        listOf("Map", "List").forEachIndexed { i, label ->
                             SegmentedButton(
                                 selected = tab == i,
                                 onClick = { tab = i },
@@ -188,12 +190,12 @@ private fun StatusBanner(state: GraphUiState, onRegenerate: () -> Unit) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = Folio.Mint)
             Text(
-                if (state.outdated) "  Mapa hasta ${state.generatedAt}. Avanzaste desde entonces."
-                else "  Sin spoilers · hasta ${state.generatedAt}",
+                if (state.outdated) "  Map up to ${state.generatedAt}. You've read further since."
+                else "  No spoilers · up to ${state.generatedAt}",
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.weight(1f),
             )
-            if (state.outdated) TextButton(onClick = onRegenerate) { Text("Actualizar") }
+            if (state.outdated) TextButton(onClick = onRegenerate) { Text("Update") }
         }
     }
 }
@@ -206,7 +208,7 @@ private fun GraphMap(graph: GraphData, modifier: Modifier) {
     var selected by remember(graph) { mutableStateOf<String?>(null) }
     var filter by remember(graph) { mutableStateOf<String?>(null) }
     val byId = remember(graph) { graph.characters.associateBy { it.id } }
-    val presentTypes = remember(graph) { relationTypes.keys.filter { t -> graph.relationships.any { it.type == t } } }
+    val presentTypes = remember(graph) { relationTypes.keys.filter { t -> graph.relationships.any { it.kind == t } } }
 
     Column(modifier) {
         LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -310,7 +312,7 @@ private fun GraphCanvas(
                 val a = positions[r.source] ?: continue
                 val b = positions[r.target] ?: continue
                 val focused = selected == null || r.source == selected || r.target == selected
-                val typeMatch = filter == null || r.type == filter
+                val typeMatch = filter == null || r.kind == filter
                 val alpha = when {
                     !typeMatch -> 0.06f
                     !focused -> 0.1f
@@ -321,7 +323,7 @@ private fun GraphCanvas(
                     start = a,
                     end = b,
                     strokeWidth = if (selected != null && focused && typeMatch) 5f else 3f,
-                    pathEffect = if (r.type == "rivalidad") PathEffect.dashPathEffect(floatArrayOf(14f, 10f)) else null,
+                    pathEffect = if (r.kind == RelationType.RIVALRY) PathEffect.dashPathEffect(floatArrayOf(14f, 10f)) else null,
                 )
                 if (selected != null && focused && typeMatch && r.label.isNotBlank()) {
                     val mid = (a + b) / 2f
@@ -393,16 +395,16 @@ private fun CharacterCard(
                 }
                 Column(Modifier.padding(start = 12.dp).weight(1f)) {
                     Text(ch.name, style = MaterialTheme.typography.titleLarge)
-                    val meta = listOfNotNull(ch.group.takeIf { it.isNotBlank() }, ch.firstAppearance.takeIf { it.isNotBlank() }?.let { "aparece en $it" })
+                    val meta = listOfNotNull(ch.group.takeIf { it.isNotBlank() }, ch.firstAppearance.takeIf { it.isNotBlank() }?.let { "first in $it" })
                     if (meta.isNotEmpty()) {
                         Text(meta.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Cerrar") }
+                IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") }
             }
             if (ch.aliases.isNotEmpty()) {
                 Text(
-                    "También: " + ch.aliases.joinToString(", "),
+                    "Also: " + ch.aliases.joinToString(", "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 10.dp),
@@ -410,7 +412,7 @@ private fun CharacterCard(
             }
             Text(ch.description, style = MaterialTheme.typography.bodyLarge, fontFamily = SerifDisplay, modifier = Modifier.padding(top = 10.dp))
             if (relations.isNotEmpty()) {
-                Text("Relaciones", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
+                Text("Relationships", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
                 relations.forEach { r -> RelationRow(ch.id, r, byId, onSelect) }
             }
         }
@@ -432,7 +434,7 @@ private fun RelationRow(selfId: String, r: GraphRelation, byId: Map<String, Grap
         Box(Modifier.size(10.dp).clip(CircleShape).background(relationColor(r.type)))
         Column(Modifier.padding(start = 10.dp)) {
             Text(
-                "${other.name} — ${r.label.ifBlank { relationTypes[r.type]?.first.orEmpty() }}",
+                "${other.name} — ${r.label.ifBlank { relationTypes[r.kind]?.first.orEmpty() }}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -476,7 +478,7 @@ private fun CharacterList(graph: GraphData, modifier: Modifier) {
 private fun GeneratingState(label: String) {
     val t = rememberInfiniteTransition(label = "gen")
     val pulse by t.animateFloat(0.85f, 1.1f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
-    val messages = listOf("Releyendo hasta tu página…", "Buscando quién es quién…", "Uniendo los hilos…", "Sin mirar más allá de tu página…")
+    val messages = listOf("Rereading up to your page…", "Working out who's who…", "Connecting the threads…", "Not peeking past your page…")
     val idx by t.animateFloat(0f, messages.size.toFloat(), infiniteRepeatable(tween(messages.size * 2600)), label = "msg")
     Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(
@@ -490,7 +492,7 @@ private fun GeneratingState(label: String) {
             textAlign = TextAlign.Center,
         )
         Text(
-            "Hasta $label. En libros largos puede tardar un minuto o dos.",
+            "Up to $label. Long books can take a minute or two.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -510,9 +512,9 @@ private fun EmptyGraphState(state: GraphUiState, onGenerate: () -> Unit, onOpenS
             Modifier.size(104.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Rounded.Hub, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary) }
-        Text("¿Quién es quién?", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 24.dp))
+        Text("Who's who?", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 24.dp))
         Text(
-            "Lumen lee el libro hasta tu página y dibuja a los personajes y cómo se relacionan. Nada de lo que viene después.",
+            "Lumen reads the book up to your page and maps the characters and how they're connected. Nothing from what comes later.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -522,7 +524,7 @@ private fun EmptyGraphState(state: GraphUiState, onGenerate: () -> Unit, onOpenS
         Button(onClick = onGenerate, shape = CircleShape) {
             Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Crear mapa hasta ${state.currentLabel.substringBefore(" ·")}")
+            Text("Create map up to ${state.currentLabel.substringBefore(" ·")}")
         }
         Text(
             state.currentLabel,
@@ -532,7 +534,7 @@ private fun EmptyGraphState(state: GraphUiState, onGenerate: () -> Unit, onOpenS
         )
         state.error?.let {
             Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 16.dp))
-            if (state.needsKey) TextButton(onClick = onOpenSettings) { Text("Ir a Ajustes") }
+            if (state.needsKey) TextButton(onClick = onOpenSettings) { Text("Go to Settings") }
         }
     }
 }
@@ -545,16 +547,16 @@ private fun AheadWarning(state: GraphUiState, onRegenerate: () -> Unit, onReveal
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(Icons.Rounded.Shield, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
-        Text("Cuidado: posibles spoilers", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
+        Text("Careful: possible spoilers", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
         Text(
-            "El mapa guardado llega hasta ${state.generatedAt}, más allá de donde estás ahora (${state.currentLabel}).",
+            "The saved map goes up to ${state.generatedAt}, past where you are now (${state.currentLabel}).",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp),
         )
-        Button(onClick = onRegenerate, shape = CircleShape, modifier = Modifier.padding(top = 20.dp)) { Text("Rehacer hasta mi página") }
-        OutlinedButton(onClick = onReveal, shape = CircleShape, modifier = Modifier.padding(top = 8.dp)) { Text("Ver de todos modos") }
+        Button(onClick = onRegenerate, shape = CircleShape, modifier = Modifier.padding(top = 20.dp)) { Text("Rebuild up to my page") }
+        OutlinedButton(onClick = onReveal, shape = CircleShape, modifier = Modifier.padding(top = 8.dp)) { Text("Show it anyway") }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
     }
 }

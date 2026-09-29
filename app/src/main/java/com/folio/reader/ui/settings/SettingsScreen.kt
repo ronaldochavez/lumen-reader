@@ -136,14 +136,14 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun exportBackup(uri: Uri) = dataWork {
         val m = c.backup.export(uri)
-        "✓ Respaldo guardado: " + BackupManager.run {
-            "${count(m.books, "libro", "libros")}, ${count(m.highlights, "subrayado", "subrayados")}, ${count(m.bookmarks, "marcador", "marcadores")}."
+        "✓ Backup saved: " + BackupManager.run {
+            "${count(m.books, "book", "books")}, ${count(m.highlights, "highlight", "highlights")}, ${count(m.bookmarks, "bookmark", "bookmarks")}."
         }
     }
 
     fun exportHighlights(uri: Uri) = dataWork {
         val n = c.backup.exportHighlights(uri)
-        if (n == 0) "Aún no tienes subrayados; el archivo quedó casi vacío." else "✓ Exportaste ${BackupManager.count(n, "subrayado", "subrayados")}."
+        if (n == 0) "You don't have any highlights yet, so the file is almost empty." else "✓ Exported ${BackupManager.count(n, "highlight", "highlights")}."
     }
 
     fun inspectRestore(uri: Uri) = dataWork {
@@ -166,7 +166,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     private fun dataWork(block: suspend () -> String?) = viewModelScope.launch {
         dataBusy.value = true
         dataStatus.value = null
-        dataStatus.value = runCatching { block() }.getOrElse { it.message ?: "Algo salió mal." }
+        dataStatus.value = runCatching { block() }.getOrElse { it.message ?: "Something went wrong." }
         dataBusy.value = false
     }
 
@@ -203,22 +203,22 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
 
     pendingRestore?.let { (_, m) ->
         val date = remember(m.createdAt) {
-            java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.forLanguageTag("es")).format(java.util.Date(m.createdAt))
+            java.text.SimpleDateFormat("MMM d, yyyy, h:mm a", java.util.Locale.US).format(java.util.Date(m.createdAt))
         }
         AlertDialog(
             onDismissRequest = vm::cancelRestore,
-            title = { Text("¿Restaurar este respaldo?") },
+            title = { Text("Restore this backup?") },
             text = {
                 Text(
-                    "Respaldo del $date: " + BackupManager.run {
-                        "${count(m.books, "libro", "libros")}, ${count(m.highlights, "subrayado", "subrayados")} y ${count(m.bookmarks, "marcador", "marcadores")}.\n\n"
+                    "Backup from $date: " + BackupManager.run {
+                        "${count(m.books, "book", "books")}, ${count(m.highlights, "highlight", "highlights")} and ${count(m.bookmarks, "bookmark", "bookmarks")}.\n\n"
                     } +
-                        "Reemplazará tu biblioteca actual. Lo que tienes ahora se guarda aparte por si acaso. " +
-                        "Lumen se reiniciará al terminar."
+                        "It will replace your current library. What you have now is kept aside, just in case. " +
+                        "Lumen will restart when it's done."
                 )
             },
-            confirmButton = { Button(onClick = { vm.confirmRestore { restartApp(context) } }, shape = CircleShape) { Text("Restaurar") } },
-            dismissButton = { TextButton(onClick = vm::cancelRestore) { Text("Cancelar") } },
+            confirmButton = { Button(onClick = { vm.confirmRestore { restartApp(context) } }, shape = CircleShape) { Text("Restore") } },
+            dismissButton = { TextButton(onClick = vm::cancelRestore) { Text("Cancel") } },
         )
     }
 
@@ -231,14 +231,14 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column {
-            Text("Hazlo tuyo", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
-            Text("Ajustes", style = MaterialTheme.typography.displaySmall)
+            Text("Make it yours", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+            Text("Settings", style = MaterialTheme.typography.displaySmall)
         }
 
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.DarkMode, null, tint = MaterialTheme.colorScheme.primary)
-                Text("  Apariencia", style = MaterialTheme.typography.titleLarge)
+                Text("  Appearance", style = MaterialTheme.typography.titleLarge)
             }
             FlowRow(
                 Modifier.padding(top = 14.dp),
@@ -270,16 +270,16 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                 }
             }
             Text(
-                "«Oscuro» usa tonos ciruela; «Negro» es negro puro con grises neutros (ideal en pantallas OLED). " +
-                    "Ambos cambian también el tema del lector, que puedes ajustar aparte desde «Aa» mientras lees.",
+                "\"Dark\" uses plum tones; \"Black\" is pure black with neutral grays (ideal for OLED screens). " +
+                    "Both also switch the reader's theme, which you can change separately from \"Aa\" while reading.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 10.dp),
             )
 
-            Text("Color de acento", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 18.dp))
+            Text("Accent color", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 18.dp))
             Text(
-                "El color de los botones principales, selecciones e indicadores.",
+                "The color of the main buttons, selections and indicators.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -289,14 +289,14 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.AutoMirrored.Rounded.MenuBook, null, tint = MaterialTheme.colorScheme.primary)
-                Text("  Lectura", style = MaterialTheme.typography.titleLarge)
+                Text("  Reading", style = MaterialTheme.typography.titleLarge)
             }
             Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Pasar página con los botones de volumen", style = MaterialTheme.typography.titleSmall)
+                    Text("Turn pages with the volume buttons", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "Bajar volumen: siguiente página. Subir: anterior. Mientras Lumen lee en voz alta, los botones " +
-                            "vuelven a controlar el volumen.",
+                        "Volume down: next page. Volume up: previous page. While Lumen reads aloud, the buttons " +
+                            "control the volume again.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -309,22 +309,22 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary)
-                Text("  Compañero de lectura IA", style = MaterialTheme.typography.titleLarge)
+                Text("  AI reading companion", style = MaterialTheme.typography.titleLarge)
             }
             Text(
-                "Selecciona cualquier texto mientras lees y pregunta «¿quién es?». Lumen solo envía el libro desde el " +
-                    "inicio hasta tu página actual, y la IA tiene instrucciones de no adelantar nada.",
+                "Select any text while you read and ask \"who is this?\". Lumen only sends the book from the " +
+                    "beginning up to your current page, and the AI is instructed never to reveal what comes next.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
             Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Ahora responde: ", style = MaterialTheme.typography.labelLarge)
+                Text("Answering now: ", style = MaterialTheme.typography.labelLarge)
                 Text(
                     when (provider) {
-                        AiProvider.CLAUDE -> "${model.label} · tu key"
-                        AiProvider.GEMINI -> "Gemini · gratis"
-                        null -> "nadie aún — activa una opción abajo"
+                        AiProvider.CLAUDE -> "${model.label} · your key"
+                        AiProvider.GEMINI -> "Gemini · free"
+                        null -> "nobody yet — turn on an option below"
                     },
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onPrimary,
@@ -337,7 +337,7 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
             if (provider != null) {
                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Button(onClick = vm::test, enabled = !testing, shape = CircleShape) {
-                        if (testing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Probar conexión")
+                        if (testing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Test connection")
                     }
                 }
             }
@@ -347,28 +347,28 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         // ---- Free tier ----
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("1 · Gratis con Gemini", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                if (hasGemini) Icon(Icons.Rounded.CheckCircle, "Activa", tint = MaterialTheme.colorScheme.primary)
+                Text("1 · Free with Gemini", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                if (hasGemini) Icon(Icons.Rounded.CheckCircle, "Active", tint = MaterialTheme.colorScheme.primary)
             }
             Text(
-                "Usa Google Gemini con una key gratuita de Google AI Studio (sin tarjeta). Tiene límites de uso por minuto " +
-                    "y por día; si se acaban, podrás seguir con tu propia key de Anthropic.",
+                "Uses Google Gemini with a free key from Google AI Studio (no card needed). It has per-minute and daily " +
+                    "limits; if you run out, you can keep going with your own Anthropic key.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp),
             )
             if (hasGemini) {
-                SavedKeyRow("Key de Gemini guardada y cifrada", onRemove = vm::clearGeminiKey)
+                SavedKeyRow("Gemini key saved and encrypted", onRemove = vm::clearGeminiKey)
             } else {
                 OutlinedButton(
                     onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GeminiService.API_KEY_URL))) } },
                     shape = CircleShape,
                     modifier = Modifier.padding(top = 12.dp),
-                ) { Text("Obtener key gratis") }
-                KeyInput(label = "Key de Gemini", placeholder = "AIza…", onSave = vm::saveGeminiKey)
+                ) { Text("Get a free key") }
+                KeyInput(label = "Gemini key", placeholder = "AIza…", onSave = vm::saveGeminiKey)
             }
             Text(
-                "Privacidad: en el plan gratuito, Google puede usar el texto que se envía para mejorar sus productos.",
+                "Privacy: on the free plan, Google may use the text you send to improve its products.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 10.dp),
@@ -378,19 +378,19 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         // ---- Personal key ----
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("2 · Tu key personal (Claude)", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                if (hasAnthropic) Icon(Icons.Rounded.CheckCircle, "Activa", tint = MaterialTheme.colorScheme.primary)
+                Text("2 · Your own key (Claude)", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                if (hasAnthropic) Icon(Icons.Rounded.CheckCircle, "Active", tint = MaterialTheme.colorScheme.primary)
             }
             Text(
-                "Opcional. Respuestas más precisas, sin límites diarios y sin que tus textos se usen para entrenar. " +
-                    "Pagas por uso en tu cuenta de Anthropic. Si la agregas, tiene prioridad sobre Gemini.",
+                "Optional. More accurate answers, no daily limits, and your text isn't used for training. " +
+                    "You pay per use on your Anthropic account. If you add it, it takes priority over Gemini.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp),
             )
             if (hasAnthropic) {
-                SavedKeyRow("Key de Anthropic guardada y cifrada", onRemove = vm::clearAnthropicKey)
-                Text("Modelo", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
+                SavedKeyRow("Anthropic key saved and encrypted", onRemove = vm::clearAnthropicKey)
+                Text("Model", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
                 AiModel.entries.forEach { m ->
                     Row(
                         Modifier
@@ -407,9 +407,9 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                     }
                 }
             } else {
-                KeyInput(label = "API key de Anthropic", placeholder = "sk-ant-…", onSave = vm::saveAnthropicKey)
+                KeyInput(label = "Anthropic API key", placeholder = "sk-ant-…", onSave = vm::saveAnthropicKey)
                 Text(
-                    "Consíguela en console.anthropic.com → API Keys.",
+                    "Get one at console.anthropic.com → API Keys.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp),
@@ -420,11 +420,11 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         Card {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Backup, null, tint = MaterialTheme.colorScheme.primary)
-                Text("  Tus datos", style = MaterialTheme.typography.titleLarge)
+                Text("  Your data", style = MaterialTheme.typography.titleLarge)
             }
             Text(
-                "Un respaldo guarda en un solo archivo tus libros, subrayados, notas, marcadores, colecciones, progreso y " +
-                    "estadísticas. Guárdalo en Drive o en tu computadora para no perder nada si cambias de tablet.",
+                "A backup saves your books, highlights, notes, bookmarks, collections, progress and stats in a single " +
+                    "file. Keep it in Drive or on your computer so you don't lose anything if you switch devices.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
@@ -435,26 +435,26 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(onClick = { createBackup.launch(BackupManager.backupFileName()) }, enabled = !dataBusy, shape = CircleShape) {
-                    Text("Crear respaldo")
+                    Text("Create backup")
                 }
                 OutlinedButton(onClick = { pickBackup.launch(arrayOf("application/zip", "application/octet-stream")) }, enabled = !dataBusy, shape = CircleShape) {
-                    Text("Restaurar")
+                    Text("Restore")
                 }
                 OutlinedButton(onClick = { exportHighlights.launch(BackupManager.highlightsFileName()) }, enabled = !dataBusy, shape = CircleShape) {
-                    Text("Exportar subrayados")
+                    Text("Export highlights")
                 }
             }
             if (dataBusy) {
                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Text("  Trabajando…", style = MaterialTheme.typography.bodySmall)
+                    Text("  Working…", style = MaterialTheme.typography.bodySmall)
                 }
             }
             dataStatus?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
             }
             Text(
-                "«Exportar subrayados» crea un archivo Markdown con tus citas y notas, ordenadas por libro y capítulo.",
+                "\"Export highlights\" creates a Markdown file with your quotes and notes, grouped by book and chapter.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 12.dp),
@@ -462,11 +462,11 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         }
 
         Card {
-            Text("Privacidad", style = MaterialTheme.typography.titleLarge)
+            Text("Privacy", style = MaterialTheme.typography.titleLarge)
             Text(
-                "Tus libros, subrayados y colecciones viven solo en este dispositivo. Las keys se guardan cifradas con el " +
-                    "Android Keystore. Al usar la IA, el texto del libro hasta tu posición y tu pregunta se envían al " +
-                    "proveedor activo (Google o Anthropic).",
+                "Your books, highlights and collections live only on this device. Keys are stored encrypted with the " +
+                    "Android Keystore. When you use the AI, the book's text up to your position and your question are " +
+                    "sent to the active provider (Google or Anthropic).",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp),
@@ -474,7 +474,7 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
         }
 
         Text(
-            "Lumen 0.2 · hecho para lectores que olvidan nombres",
+            "Lumen ${versionName(context)} · made for readers who forget names",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 16.dp),
@@ -511,19 +511,19 @@ private fun AccentPicker(current: Int?, onPick: (Int?) -> Unit) {
         Swatch(
             fill = Brush.sweepGradient((0..6).map { Color.hsv(it * 60f % 360f, 0.62f, 0.8f) }),
             selected = presetName == null,
-            description = "Personalizado",
+            description = "Custom",
             onClick = { showCustom = true; hue = hueOf(currentColor) },
         )
     }
 
     Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
-            presetName ?: "Personalizado",
+            presetName ?: "Custom",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f),
         )
-        if (current != null) TextButton(onClick = { showCustom = false; onPick(null) }) { Text("Restablecer") }
+        if (current != null) TextButton(onClick = { showCustom = false; onPick(null) }) { Text("Reset") }
     }
 
     if (showCustom) {
@@ -549,7 +549,7 @@ private fun AccentPicker(current: Int?, onPick: (Int?) -> Unit) {
             )
         }
         Text(
-            "Desliza para elegir el tono; se ajusta solo para que el texto de los botones siempre se lea bien.",
+            "Slide to pick a hue; it adjusts itself so button text always stays readable.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -583,7 +583,7 @@ private fun SavedKeyRow(text: String, onRemove: () -> Unit) {
     Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Rounded.Lock, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         Text("  $text", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        OutlinedButton(onClick = onRemove, shape = CircleShape) { Text("Quitar") }
+        OutlinedButton(onClick = onRemove, shape = CircleShape) { Text("Remove") }
     }
 }
 
@@ -600,7 +600,7 @@ private fun KeyInput(label: String, placeholder: String, onSave: (String) -> Uni
             leadingIcon = { Icon(Icons.Rounded.Key, null) },
             trailingIcon = {
                 IconButton(onClick = { show = !show }) {
-                    Icon(if (show) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, "Mostrar")
+                    Icon(if (show) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, "Show")
                 }
             },
             visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
@@ -610,9 +610,12 @@ private fun KeyInput(label: String, placeholder: String, onSave: (String) -> Uni
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(10.dp))
-        Button(onClick = { onSave(input.trim()); input = "" }, enabled = input.isNotBlank(), shape = CircleShape) { Text("Guardar") }
+        Button(onClick = { onSave(input.trim()); input = "" }, enabled = input.isNotBlank(), shape = CircleShape) { Text("Save") }
     }
 }
+
+private fun versionName(context: android.content.Context): String =
+    runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
 
 /** After a restore the database is closed: start a fresh task and end this process so everything reopens. */
 private fun restartApp(context: android.content.Context) {

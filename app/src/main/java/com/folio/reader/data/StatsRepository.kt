@@ -100,7 +100,7 @@ class StatsRepository(private val db: AppDatabase, private val settings: Setting
         }
 
         fun formatDuration(minutes: Long): String = when {
-            minutes < 1 -> "menos de 1 min"
+            minutes < 1 -> "under 1 min"
             minutes < 60 -> "$minutes min"
             else -> "${minutes / 60} h" + if (minutes % 60 != 0L) " ${minutes % 60} min" else ""
         }

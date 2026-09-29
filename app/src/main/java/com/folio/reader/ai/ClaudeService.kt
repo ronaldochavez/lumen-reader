@@ -65,8 +65,8 @@ class ClaudeService(private val settings: SettingsRepository) : AiBackend {
                 event.messageDelta().orElse(null)?.delta()?.stopReason()?.orElse(null)?.let { stop = it }
             }
         }
-        if (stop == StopReason.REFUSAL) throw IOException("La IA no pudo procesar este libro.")
-        if (stop == StopReason.MAX_TOKENS) throw IOException("El resultado quedó incompleto; intenta de nuevo.")
+        if (stop == StopReason.REFUSAL) throw IOException("The AI couldn't process this book.")
+        if (stop == StopReason.MAX_TOKENS) throw IOException("The result came back incomplete; try again.")
         out.toString()
     }
 
@@ -95,11 +95,11 @@ class ClaudeService(private val settings: SettingsRepository) : AiBackend {
         val params = MessageCreateParams.builder()
             .model(model.id)
             .maxTokens(64L)
-            .addUserMessage("Responde solo con: ¡Listo para leer contigo!")
+            .addUserMessage("Reply only with: Ready to read with you!")
             .build()
         client().messages().create(params).content()
             .firstNotNullOfOrNull { it.text().orElse(null)?.text() }
-            ?: "Conexión correcta."
+            ?: "Connection OK."
     }
 
     companion object {
@@ -167,9 +167,9 @@ class ClaudeService(private val settings: SettingsRepository) : AiBackend {
             val blocks = mutableListOf<ContentBlockParam>()
             if (context.priorChapters.isNotBlank()) {
                 blocks += ContentBlockParam.ofText(cached(header + context.priorChapters))
-                blocks += ContentBlockParam.ofText(cached(context.currentChapter + "\n</libro>"))
+                blocks += ContentBlockParam.ofText(cached(context.currentChapter + "\n</book>"))
             } else {
-                blocks += ContentBlockParam.ofText(cached(header + context.currentChapter + "\n</libro>"))
+                blocks += ContentBlockParam.ofText(cached(header + context.currentChapter + "\n</book>"))
             }
             return blocks
         }

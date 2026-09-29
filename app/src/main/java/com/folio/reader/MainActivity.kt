@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as FolioApp).container
         lifecycleScope.launch {
             val msg = runCatching { container.books.import(uri) }
-                .fold({ "Libro agregado a tu biblioteca" }, { "No se pudo importar: ${it.message}" })
+                .fold({ "Book added to your library" }, { "Couldn't import: ${it.message}" })
             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
         }
     }

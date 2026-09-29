@@ -306,7 +306,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
     fun goToChapter(index: Int, target: NavTarget) {
         val state = _ui.value
         if (index !in state.chapters.indices) {
-            if (index >= state.chapters.size) _events.trySend(ReaderEvent.Message("Fin del libro 🎉"))
+            if (index >= state.chapters.size) _events.trySend(ReaderEvent.Message("The end 🎉"))
             return
         }
         if (index == state.spineIndex && chapterReady) {
@@ -481,7 +481,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
     private val ttsListener = object : TtsPlayer.Listener {
         override fun onTtsReady(ok: Boolean) {
             if (!ok) {
-                _readAloud.update { it.copy(playing = false, error = "Este dispositivo no tiene un motor de voz. Instala «Speech Services by Google» desde Play Store.") }
+                _readAloud.update { it.copy(playing = false, error = "This device has no text-to-speech engine. Install \"Speech Services by Google\" from the Play Store.") }
                 return
             }
             tts?.setLanguage(_ui.value.book?.language)
@@ -502,7 +502,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
         }
 
         override fun onTtsError() {
-            _readAloud.update { it.copy(playing = false, error = "La voz se detuvo por un error del motor de texto a voz.") }
+            _readAloud.update { it.copy(playing = false, error = "The voice stopped because of a text-to-speech engine error.") }
         }
     }
 
@@ -585,7 +585,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
             goToChapter(s.spineIndex + 1, NavTarget.Offset(0))
         } else {
             stopReadAloud()
-            _events.trySend(ReaderEvent.Message("Fin del libro 🎉"))
+            _events.trySend(ReaderEvent.Message("The end 🎉"))
         }
     }
 
@@ -614,7 +614,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
                 c.ai.quick(Prompts.DEFINE_SYSTEM, request, maxTokens = 600).collect { ev ->
                     when (ev) {
                         is AiEvent.Delta -> _define.update { it?.copy(text = it.text + ev.text) }
-                        AiEvent.Refused -> _define.update { it?.copy(error = "La IA no pudo definir esto.") }
+                        AiEvent.Refused -> _define.update { it?.copy(error = "The AI couldn't define this.") }
                         AiEvent.Truncated -> Unit
                     }
                 }
@@ -653,7 +653,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
         _ui.update { it.copy(sheet = ReaderSheet.ASK, chromeVisible = false) }
     }
 
-    /** "¿Dónde me quedé?": an empty chat about the book so far; the reader writes the first question. */
+    /** "Where was I?": an empty chat about the book so far; the reader writes the first question. */
     fun openChat() = openAsk(null)
 
     fun askQuestion(question: String) = askController.ask(question)
@@ -663,7 +663,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
     /** Text from the start of the book to the end of the visible page (or the selection, if it runs past it). */
     private suspend fun buildAskContext(selectionEnd: Int?): BookContext {
         val s = _ui.value
-        val book = s.book ?: error("Libro no cargado")
+        val book = s.book ?: error("Book not loaded")
         val cutoff = max(s.pageEnd, selectionEnd ?: 0)
         val partial = runCatching { Json.decodeFromString<String>(evalJs("Folio.textUpTo($cutoff)")) }.getOrNull()
         return c.contextBuilder.build(book, s.chapters, s.spineIndex, s.progress, partial, c.ai.maxContextChars())

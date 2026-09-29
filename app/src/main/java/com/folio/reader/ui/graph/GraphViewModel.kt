@@ -75,7 +75,7 @@ class GraphViewModel(savedState: SavedStateHandle, private val c: AppContainer) 
         _state.update { it.copy(loading = true, error = null, needsKey = false) }
         viewModelScope.launch {
             try {
-                val book = c.books.get(bookId) ?: error("Libro no encontrado")
+                val book = c.books.get(bookId) ?: error("Book not found")
                 val chapters = c.books.chapters(bookId)
                 val snapshot = c.snapshots.get(bookId)
                 val spine = snapshot?.spineIndex ?: book.spineIndex

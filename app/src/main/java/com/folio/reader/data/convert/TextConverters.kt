@@ -31,7 +31,7 @@ object TxtConverter {
         }.filter { it.isNotBlank() }
 
         val chapters = ConvertUtil.textToChapters(paragraphs, title)
-        if (chapters.isEmpty()) throw UnsupportedBookException("El archivo de texto está vacío")
+        if (chapters.isEmpty()) throw UnsupportedBookException("The text file is empty")
         return ConvertedBook(title = title, author = author, chapters = chapters)
     }
 
@@ -54,7 +54,7 @@ object TxtConverter {
 object RtfConverter {
     fun convert(file: File, fallbackTitle: String): ConvertedBook {
         val rtf = String(file.readBytes(), Charsets.ISO_8859_1)
-        if (!rtf.startsWith("{\\rtf")) throw UnsupportedBookException("El archivo RTF no es válido")
+        if (!rtf.startsWith("{\\rtf")) throw UnsupportedBookException("The RTF file isn't valid")
         return TxtConverter.fromText(toText(rtf).replace(Regex("\\n(?=\\S)"), "\n\n"), fallbackTitle)
     }
 

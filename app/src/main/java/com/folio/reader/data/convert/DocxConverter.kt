@@ -12,7 +12,7 @@ object DocxConverter {
     fun convert(file: File, fallbackTitle: String): ConvertedBook = ZipFile(file).use { zip ->
         fun read(name: String) = zip.getEntry(name)?.let { e -> zip.getInputStream(e).use { String(it.readBytes(), Charsets.UTF_8) } }
 
-        val docXml = read("word/document.xml") ?: throw UnsupportedBookException("DOCX inválido")
+        val docXml = read("word/document.xml") ?: throw UnsupportedBookException("Invalid DOCX")
         val doc = Jsoup.parse(docXml, "", Parser.xmlParser())
         val rels = read("word/_rels/document.xml.rels")?.let { Jsoup.parse(it, "", Parser.xmlParser()) }
         val relTargets = rels?.getElementsByTag("Relationship")?.associate { it.attr("Id") to it.attr("Target") }.orEmpty()
@@ -86,7 +86,7 @@ object DocxConverter {
             else sb.append("<p>").append(p.html).append("</p>")
         }
         flush()
-        if (chapters.isEmpty()) throw UnsupportedBookException("El documento está vacío")
+        if (chapters.isEmpty()) throw UnsupportedBookException("The document is empty")
         ConvertedBook(title, author, null, chapters, resources)
     }
 }

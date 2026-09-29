@@ -69,16 +69,16 @@ class LibraryViewModel(private val c: AppContainer) : ViewModel() {
             for (uri in uris) {
                 runCatching { c.books.import(uri) }
                     .onSuccess { ok++ }
-                    .onFailure { _messages.send("No se pudo importar: ${it.message ?: "archivo no válido"}") }
+                    .onFailure { _messages.send("Couldn't import: ${it.message ?: "invalid file"}") }
                 importing.update { it - 1 }
             }
-            if (ok > 0) _messages.send(if (ok == 1) "Libro agregado a tu biblioteca" else "$ok libros agregados")
+            if (ok > 0) _messages.send(if (ok == 1) "Book added to your library" else "$ok books added")
         }
     }
 
     fun delete(book: BookEntity) = viewModelScope.launch {
         c.books.delete(book.id)
-        _messages.send("«${book.title}» eliminado")
+        _messages.send("\"${book.title}\" deleted")
     }
 
     suspend fun collectionIdsFor(bookId: String) = c.db.collections().collectionIdsFor(bookId).toSet()
