@@ -1,0 +1,560 @@
+package com.folio.reader.ui.graph
+
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.folio.reader.ai.GraphCharacter
+import com.folio.reader.ai.GraphData
+import com.folio.reader.ai.GraphRelation
+import com.folio.reader.ui.theme.Folio
+import com.folio.reader.ui.theme.SerifDisplay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.absoluteValue
+import kotlin.math.hypot
+import kotlin.math.min
+
+private val relationTypes = linkedMapOf(
+    "familia" to ("Familia" to Color(0xFFF2765A)),
+    "pareja" to ("Pareja" to Color(0xFFE07BA5)),
+    "amistad" to ("Amistad" to Color(0xFF4FAE8A)),
+    "alianza" to ("Alianza" to Color(0xFF6C93DB)),
+    "rivalidad" to ("Rivalidad" to Color(0xFFC8423B)),
+    "trabajo" to ("Trabajo" to Color(0xFFD9A232)),
+    "otro" to ("Otro" to Color(0xFF9A8FA0)),
+)
+
+private fun relationColor(type: String) = relationTypes[type]?.second ?: Color(0xFF9A8FA0)
+
+private val groupColors = listOf(
+    Color(0xFF5B3E96), Color(0xFF2F7D6D), Color(0xFF34457A), Color(0xFF8C3B5E),
+    Color(0xFF6B5A2E), Color(0xFFB4533A), Color(0xFF3E6E8C), Color(0xFF7A4FA3),
+)
+
+private fun groupColor(group: String) =
+    if (group.isBlank()) Color(0xFF6F6273) else groupColors[group.lowercase().hashCode().absoluteValue % groupColors.size]
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CharacterGraphScreen(
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
+    vm: GraphViewModel = viewModel(factory = GraphViewModel.Factory),
+) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    var revealAhead by remember { mutableStateOf(false) }
+    var tab by remember { mutableIntStateOf(0) }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("Personajes", style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            state.book?.title.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
+                },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Atrás") } },
+                actions = {
+                    if (state.graph != null && !state.loading) {
+                        IconButton(onClick = vm::generate) { Icon(Icons.Rounded.Refresh, "Actualizar hasta mi página") }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+            )
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            val graph = state.graph
+            when {
+                state.loading -> GeneratingState(state.currentLabel)
+                graph == null -> EmptyGraphState(state, vm::generate, onOpenSettings)
+                state.aheadOfReader && !revealAhead -> AheadWarning(state, onRegenerate = vm::generate, onReveal = { revealAhead = true })
+                else -> Column(Modifier.fillMaxSize()) {
+                    StatusBanner(state, vm::generate)
+                    state.error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp))
+                    }
+                    SingleChoiceSegmentedButtonRow(Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth()) {
+                        listOf("Mapa", "Lista").forEachIndexed { i, label ->
+                            SegmentedButton(
+                                selected = tab == i,
+                                onClick = { tab = i },
+                                shape = SegmentedButtonDefaults.itemShape(i, 2),
+                            ) { Text(label) }
+                        }
+                    }
+                    if (tab == 0) GraphMap(graph, Modifier.weight(1f)) else CharacterList(graph, Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusBanner(state: GraphUiState, onRegenerate: () -> Unit) {
+    Surface(
+        color = if (state.outdated) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = Folio.Mint)
+            Text(
+                if (state.outdated) "  Mapa hasta ${state.generatedAt}. Avanzaste desde entonces."
+                else "  Sin spoilers · hasta ${state.generatedAt}",
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            if (state.outdated) TextButton(onClick = onRegenerate) { Text("Actualizar") }
+        }
+    }
+}
+
+@Composable
+private fun GraphMap(graph: GraphData, modifier: Modifier) {
+    val layout by produceState<Map<String, Offset>?>(null, graph) {
+        value = withContext(Dispatchers.Default) { ForceLayout.compute(graph) }
+    }
+    var selected by remember(graph) { mutableStateOf<String?>(null) }
+    var filter by remember(graph) { mutableStateOf<String?>(null) }
+    val byId = remember(graph) { graph.characters.associateBy { it.id } }
+    val presentTypes = remember(graph) { relationTypes.keys.filter { t -> graph.relationships.any { it.type == t } } }
+
+    Column(modifier) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(presentTypes) { t ->
+                val (label, color) = relationTypes.getValue(t)
+                FilterChip(
+                    selected = filter == t,
+                    onClick = { filter = if (filter == t) null else t },
+                    label = { Text(label) },
+                    leadingIcon = { Box(Modifier.size(10.dp).clip(CircleShape).background(color)) },
+                    shape = CircleShape,
+                )
+            }
+        }
+        Box(Modifier.fillMaxSize()) {
+            val positions = layout
+            if (positions != null) {
+                GraphCanvas(graph, positions, selected, filter, onSelect = { selected = it }, modifier = Modifier.fillMaxSize())
+            }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = selected != null,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                selected?.let { id -> byId[id] }?.let { ch ->
+                    CharacterCard(ch, graph, byId, onClose = { selected = null }, onSelect = { selected = it })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GraphCanvas(
+    graph: GraphData,
+    positions: Map<String, Offset>,
+    selected: String?,
+    filter: String?,
+    onSelect: (String?) -> Unit,
+    modifier: Modifier,
+) {
+    val measurer = rememberTextMeasurer()
+    var scale by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val importance = remember(graph) { graph.characters.associate { it.id to it.importance.coerceIn(1, 5) } }
+    val chars = graph.characters
+    val labelColor = MaterialTheme.colorScheme.onBackground
+    val edgeLabelBg = MaterialTheme.colorScheme.background
+
+    fun radius(id: String) = 16f + (importance[id] ?: 3) * 6f
+
+    // Fit the whole graph on screen once we know the canvas size.
+    LaunchedEffect(positions, canvasSize) {
+        if (canvasSize == IntSize.Zero || positions.isEmpty()) return@LaunchedEffect
+        val xs = positions.values.map { it.x }
+        val ys = positions.values.map { it.y }
+        val bw = (xs.max() - xs.min()).coerceAtLeast(1f) + 160f
+        val bh = (ys.max() - ys.min()).coerceAtLeast(1f) + 160f
+        val s = min(canvasSize.width / bw, canvasSize.height / bh).coerceIn(0.3f, 2.5f)
+        val cx = (xs.max() + xs.min()) / 2
+        val cy = (ys.max() + ys.min()) / 2
+        scale = s
+        pan = Offset(canvasSize.width / 2f - cx * s, canvasSize.height / 2f - cy * s)
+    }
+
+    val neighbors = remember(selected, graph) {
+        if (selected == null) emptySet()
+        else graph.relationships.filter { it.source == selected || it.target == selected }
+            .flatMap { listOf(it.source, it.target) }.toSet()
+    }
+
+    Canvas(
+        modifier
+            .onSizeChanged { canvasSize = it }
+            .pointerInput(Unit) {
+                detectTransformGestures { centroid, panChange, zoom, _ ->
+                    val newScale = (scale * zoom).coerceIn(0.25f, 4f)
+                    pan = centroid - (centroid - pan) * (newScale / scale) + panChange
+                    scale = newScale
+                }
+            }
+            .pointerInput(positions) {
+                detectTapGestures { tap ->
+                    val world = (tap - pan) / scale
+                    val hit = positions.entries
+                        .map { (id, p) -> id to hypot(p.x - world.x, p.y - world.y) }
+                        .filter { (id, d) -> d <= radius(id) + 14f }
+                        .minByOrNull { it.second }
+                    onSelect(hit?.first)
+                }
+            }
+    ) {
+        withTransform({
+            translate(pan.x, pan.y)
+            scale(scale, scale, pivot = Offset.Zero)
+        }) {
+            // Edges
+            for (r in graph.relationships) {
+                val a = positions[r.source] ?: continue
+                val b = positions[r.target] ?: continue
+                val focused = selected == null || r.source == selected || r.target == selected
+                val typeMatch = filter == null || r.type == filter
+                val alpha = when {
+                    !typeMatch -> 0.06f
+                    !focused -> 0.1f
+                    else -> 0.85f
+                }
+                drawLine(
+                    color = relationColor(r.type).copy(alpha = alpha),
+                    start = a,
+                    end = b,
+                    strokeWidth = if (selected != null && focused && typeMatch) 5f else 3f,
+                    pathEffect = if (r.type == "rivalidad") PathEffect.dashPathEffect(floatArrayOf(14f, 10f)) else null,
+                )
+                if (selected != null && focused && typeMatch && r.label.isNotBlank()) {
+                    val mid = (a + b) / 2f
+                    val layout = measurer.measure(r.label, TextStyle(fontSize = 11.sp, color = relationColor(r.type), fontWeight = FontWeight.SemiBold))
+                    val tl = Offset(mid.x - layout.size.width / 2f, mid.y - layout.size.height / 2f)
+                    drawRoundRect(
+                        color = edgeLabelBg.copy(alpha = .92f),
+                        topLeft = tl - Offset(6f, 2f),
+                        size = androidx.compose.ui.geometry.Size(layout.size.width + 12f, layout.size.height + 4f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
+                    )
+                    drawText(layout, topLeft = tl)
+                }
+            }
+            // Nodes
+            for (ch in chars) {
+                val p = positions[ch.id] ?: continue
+                val r = radius(ch.id)
+                val dim = selected != null && ch.id !in neighbors && ch.id != selected
+                val alpha = if (dim) 0.25f else 1f
+                val color = groupColor(ch.group)
+                if (ch.id == selected) drawCircle(Folio.Coral.copy(alpha = .35f), r + 10f, p)
+                drawCircle(color.copy(alpha = alpha), r, p)
+                drawCircle(Color.White.copy(alpha = .9f * alpha), r, p, style = Stroke(width = 3f))
+                val initials = ch.name.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
+                val init = measurer.measure(initials, TextStyle(fontSize = (r / 2.4f).sp, color = Color.White.copy(alpha = alpha), fontWeight = FontWeight.Bold))
+                drawText(init, topLeft = p - Offset(init.size.width / 2f, init.size.height / 2f))
+                val name = measurer.measure(
+                    ch.name,
+                    TextStyle(
+                        fontSize = if ((importance[ch.id] ?: 3) >= 4) 14.sp else 12.sp,
+                        color = labelColor.copy(alpha = alpha),
+                        fontWeight = if ((importance[ch.id] ?: 3) >= 4) FontWeight.SemiBold else FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                    ),
+                )
+                drawText(name, topLeft = Offset(p.x - name.size.width / 2f, p.y + r + 6f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CharacterCard(
+    ch: GraphCharacter,
+    graph: GraphData,
+    byId: Map<String, GraphCharacter>,
+    onClose: () -> Unit,
+    onSelect: (String) -> Unit,
+) {
+    val relations = graph.relationships.filter { it.source == ch.id || it.target == ch.id }
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shadowElevation = 12.dp,
+        modifier = Modifier.padding(12.dp).navigationBarsPadding().fillMaxWidth().heightIn(max = 340.dp),
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(44.dp).clip(CircleShape).background(groupColor(ch.group)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        ch.name.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() },
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                    Text(ch.name, style = MaterialTheme.typography.titleLarge)
+                    val meta = listOfNotNull(ch.group.takeIf { it.isNotBlank() }, ch.firstAppearance.takeIf { it.isNotBlank() }?.let { "aparece en $it" })
+                    if (meta.isNotEmpty()) {
+                        Text(meta.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Cerrar") }
+            }
+            if (ch.aliases.isNotEmpty()) {
+                Text(
+                    "También: " + ch.aliases.joinToString(", "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+            Text(ch.description, style = MaterialTheme.typography.bodyLarge, fontFamily = SerifDisplay, modifier = Modifier.padding(top = 10.dp))
+            if (relations.isNotEmpty()) {
+                Text("Relaciones", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
+                relations.forEach { r -> RelationRow(ch.id, r, byId, onSelect) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RelationRow(selfId: String, r: GraphRelation, byId: Map<String, GraphCharacter>, onSelect: (String) -> Unit) {
+    val otherId = if (r.source == selfId) r.target else r.source
+    val other = byId[otherId] ?: return
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable { onSelect(otherId) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(relationColor(r.type)))
+        Column(Modifier.padding(start = 10.dp)) {
+            Text(
+                "${other.name} — ${r.label.ifBlank { relationTypes[r.type]?.first.orEmpty() }}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (r.description.isNotBlank()) {
+                Text(r.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CharacterList(graph: GraphData, modifier: Modifier) {
+    val byId = remember(graph) { graph.characters.associateBy { it.id } }
+    var expanded by remember(graph) { mutableStateOf<String?>(null) }
+    LazyColumn(modifier, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(graph.characters.sortedByDescending { it.importance }, key = { it.id }) { ch ->
+            Surface(
+                onClick = { expanded = if (expanded == ch.id) null else ch.id },
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(12.dp).clip(CircleShape).background(groupColor(ch.group)))
+                        Text("  ${ch.name}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text("★".repeat(ch.importance.coerceIn(1, 5)), color = Folio.Mustard, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text(ch.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
+                    if (expanded == ch.id) {
+                        graph.relationships.filter { it.source == ch.id || it.target == ch.id }.forEach { r ->
+                            RelationRow(ch.id, r, byId) { expanded = it }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GeneratingState(label: String) {
+    val t = rememberInfiniteTransition(label = "gen")
+    val pulse by t.animateFloat(0.85f, 1.1f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
+    val messages = listOf("Releyendo hasta tu página…", "Buscando quién es quién…", "Uniendo los hilos…", "Sin mirar más allá de tu página…")
+    val idx by t.animateFloat(0f, messages.size.toFloat(), infiniteRepeatable(tween(messages.size * 2600)), label = "msg")
+    Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(
+            Modifier.size((96 * pulse).dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Rounded.Hub, null, Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary) }
+        Text(
+            messages[idx.toInt().coerceIn(0, messages.lastIndex)],
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(top = 28.dp),
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            "Hasta $label. En libros largos puede tardar un minuto o dos.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun EmptyGraphState(state: GraphUiState, onGenerate: () -> Unit, onOpenSettings: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            Modifier.size(104.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Rounded.Hub, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary) }
+        Text("¿Quién es quién?", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 24.dp))
+        Text(
+            "Lumen lee el libro hasta tu página y dibuja a los personajes y cómo se relacionan. Nada de lo que viene después.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onGenerate, shape = CircleShape) {
+            Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Crear mapa hasta ${state.currentLabel.substringBefore(" ·")}")
+        }
+        Text(
+            state.currentLabel,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        state.error?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 16.dp))
+            if (state.needsKey) TextButton(onClick = onOpenSettings) { Text("Ir a Ajustes") }
+        }
+    }
+}
+
+@Composable
+private fun AheadWarning(state: GraphUiState, onRegenerate: () -> Unit, onReveal: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(Icons.Rounded.Shield, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.secondary)
+        Text("Cuidado: posibles spoilers", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
+        Text(
+            "El mapa guardado llega hasta ${state.generatedAt}, más allá de donde estás ahora (${state.currentLabel}).",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Button(onClick = onRegenerate, shape = CircleShape, modifier = Modifier.padding(top = 20.dp)) { Text("Rehacer hasta mi página") }
+        OutlinedButton(onClick = onReveal, shape = CircleShape, modifier = Modifier.padding(top = 8.dp)) { Text("Ver de todos modos") }
+        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
+    }
+}

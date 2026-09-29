@@ -1,0 +1,18 @@
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+/.claude/
+# Release signing: the key and its passwords must never be committed.
+/keystore.properties
+*.jks
+*.keystore
+*.apk
+*.aab

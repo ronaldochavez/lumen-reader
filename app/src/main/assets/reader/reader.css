@@ -1,0 +1,96 @@
+/* Injected into every chapter. Paginates with CSS columns: one column == one screen.
+   --folio-w/--folio-h are set from JS in px: in Android WebView, vh can stay 0 if the page loads before the view is measured. */
+:root {
+  --folio-bg: #FFFCF7;
+  --folio-fg: #2A1F2D;
+  --folio-link: #5B3E96;
+  --folio-font: Georgia, "Noto Serif", "Droid Serif", serif;
+  --folio-size: 19px;
+  --folio-lh: 1.6;
+  --folio-pad-x: 24px;
+  --folio-pad-top: 52px;
+  --folio-pad-bottom: 56px;
+}
+
+html {
+  height: var(--folio-h, 100vh) !important;
+  width: var(--folio-w, 100vw) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: var(--folio-bg) !important;
+  -webkit-text-size-adjust: 100% !important;
+}
+
+body {
+  box-sizing: border-box !important;
+  height: var(--folio-h, 100vh) !important;
+  width: var(--folio-w, 100vw) !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: var(--folio-pad-top) var(--folio-pad-x) var(--folio-pad-bottom) var(--folio-pad-x) !important;
+  column-width: calc(var(--folio-w, 100vw) - 2 * var(--folio-pad-x)) !important;
+  column-gap: calc(2 * var(--folio-pad-x)) !important;
+  column-fill: auto !important;
+  background: var(--folio-bg) !important;
+  color: var(--folio-fg) !important;
+  font-family: var(--folio-font) !important;
+  font-size: var(--folio-size) !important;
+  line-height: var(--folio-lh) !important;
+  overflow-wrap: break-word;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+html.folio-ready body { opacity: 1; }
+
+body * {
+  color: inherit !important;
+  background-color: transparent !important;
+  max-width: 100% !important;
+}
+
+p, li, blockquote, dd, dt, div, span, td {
+  font-family: inherit !important;
+  line-height: inherit !important;
+}
+
+p, li { font-size: 1em !important; }
+
+h1, h2, h3, h4 {
+  line-height: 1.25 !important;
+  break-after: avoid;
+  -webkit-hyphens: manual;
+  hyphens: manual;
+}
+
+a, a * { color: var(--folio-link) !important; text-decoration: none !important; }
+
+img, svg, video {
+  max-width: 100% !important;
+  max-height: calc(var(--folio-h, 100vh) - var(--folio-pad-top) - var(--folio-pad-bottom)) !important;
+  height: auto;
+  object-fit: contain;
+  break-inside: avoid;
+}
+
+figure, table, pre { break-inside: avoid; }
+
+* { -webkit-tap-highlight-color: transparent; }
+
+::selection { background: rgba(123, 92, 214, .30); }
+
+::highlight(folio-yellow) { background-color: rgba(247, 201, 72, .45); }
+::highlight(folio-coral)  { background-color: rgba(242, 118, 90, .35); }
+::highlight(folio-mint)   { background-color: rgba(109, 190, 159, .40); }
+::highlight(folio-violet) { background-color: rgba(154, 123, 224, .38); }
+::highlight(folio-flash)  { background-color: rgba(242, 118, 90, .55); }
+::highlight(folio-tts)    { background-color: rgba(123, 92, 214, .22); text-decoration: underline 2px rgba(123, 92, 214, .7); }
+html[data-folio-theme="NIGHT"] ::highlight(folio-tts), html[data-folio-theme="BLACK"] ::highlight(folio-tts) { background-color: rgba(185, 162, 240, .22); color: #fff; }
+
+html[data-folio-theme="NIGHT"] ::highlight(folio-yellow), html[data-folio-theme="BLACK"] ::highlight(folio-yellow) { background-color: rgba(247, 201, 72, .30); color: #fff; }
+html[data-folio-theme="NIGHT"] ::highlight(folio-coral), html[data-folio-theme="BLACK"] ::highlight(folio-coral)  { background-color: rgba(242, 118, 90, .30); color: #fff; }
+html[data-folio-theme="NIGHT"] ::highlight(folio-mint), html[data-folio-theme="BLACK"] ::highlight(folio-mint)   { background-color: rgba(109, 190, 159, .30); color: #fff; }
+html[data-folio-theme="NIGHT"] ::highlight(folio-violet), html[data-folio-theme="BLACK"] ::highlight(folio-violet) { background-color: rgba(154, 123, 224, .34); color: #fff; }

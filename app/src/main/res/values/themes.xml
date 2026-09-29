@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="folio_cream">#FFF8F0</color>
+    <color name="folio_plum">#5B3E96</color>
+    <color name="ic_launcher_background">#5B3E96</color>
+
+    <style name="Theme.Folio" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/folio_cream</item>
+        <item name="android:colorAccent">@color/folio_plum</item>
+    </style>
+</resources>

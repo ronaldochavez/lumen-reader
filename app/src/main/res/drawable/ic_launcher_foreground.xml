@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Open book with a small spark: reading + AI companion. Drawn in the 108dp adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- left page -->
+    <path
+        android:fillColor="#FFF8F0"
+        android:pathData="M54,44 C47,39 38,37 30,38 L30,70 C38,69 47,71 54,76 Z" />
+    <!-- right page -->
+    <path
+        android:fillColor="#FFE3DA"
+        android:pathData="M54,44 C61,39 70,37 78,38 L78,70 C70,69 61,71 54,76 Z" />
+    <!-- spark -->
+    <path
+        android:fillColor="#F3B948"
+        android:pathData="M54,24 L56.2,30.8 L63,33 L56.2,35.2 L54,42 L51.8,35.2 L45,33 L51.8,30.8 Z" />
+</vector>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Folio" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#16121B</item>
+        <item name="android:colorAccent">#B9A2F0</item>
+    </style>
+</resources>
