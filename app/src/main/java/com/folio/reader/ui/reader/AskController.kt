@@ -19,12 +19,12 @@ import kotlinx.coroutines.launch
 /**
  * The "Ask Lumen" conversation, shared by the text reader and the page (PDF) reader.
  * [buildContext] returns the book text up to the reader's position; it's called once per conversation
- * (with the selection's end offset, if any) so follow-up questions reuse the same prompt-cached prefix.
+ * (with the selection, if any) so follow-up questions reuse the same prompt-cached prefix.
  */
 class AskController(
     private val scope: CoroutineScope,
     private val c: AppContainer,
-    private val buildContext: suspend (selectionEnd: Int?) -> BookContext,
+    private val buildContext: suspend (selection: SelectionInfo?) -> BookContext,
 ) {
     private val _state = MutableStateFlow(AskState())
     val state = _state.asStateFlow()
@@ -39,7 +39,8 @@ class AskController(
     }
 
     private suspend fun refreshProvider() {
-        val provider = c.ai.activeProvider.first()
+        // The one that will actually answer: the local AI is skipped when the computer can't be reached.
+        val provider = runCatching { c.ai.currentProvider() }.getOrElse { c.ai.activeProvider.first() }
         _state.update { it.copy(provider = provider, needsKey = provider == null) }
     }
 
@@ -77,7 +78,7 @@ class AskController(
         }
         job = scope.launch {
             try {
-                val ctx = context ?: buildContext(start.selection?.end).also { context = it }
+                val ctx = context ?: buildContext(start.selection).also { context = it }
                 _state.update { it.copy(positionLabel = ctx.positionLabel, note = ctx.truncationNote) }
                 val readText = ctx.currentChapter.substringAfter('>').substringBefore(SpoilerFreeContextBuilder.READER_MARKER)
                 if (ctx.priorChapters.isBlank() && readText.isBlank()) {

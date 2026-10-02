@@ -14,7 +14,8 @@ a table of contents, Paper / Sepia / Night / Black themes and an accent color of
    this install.
 3. Import your books with **Import book** (EPUB, PDF, MOBI, comics…).
 4. For the AI, the app walks you through creating a **free** Google Gemini key (no card needed) the first time you
-   ask something. You can optionally use your own Anthropic (Claude) key instead.
+   ask something. You can also run a free model on your own computer ([Ollama](#free-and-private-a-model-on-your-own-computer-ollama))
+   or use your own Anthropic (Claude) key.
 
 Your books, highlights and keys stay on your device; there are no Lumen accounts or servers. Only your question
 (and the book up to your page) is sent to the AI provider you choose.
@@ -92,8 +93,39 @@ For a signed release APK, create `keystore.properties` in the project root (it's
    Anthropic key in Settings. With an Anthropic key, Claude takes priority (Opus 5.5 by default; Sonnet 5.5 or
    Haiku 4.5 optional).
 
-Both keys are stored encrypted with the Android Keystore. The prompts and anti-spoiler rules are the same for both
-providers (`ai/AiCommon.kt`); `AiService` picks the provider on each request.
+Both keys are stored encrypted with the Android Keystore. The prompts and anti-spoiler rules are the same for every
+provider (`ai/AiCommon.kt`); `AiService` picks the provider on each request.
+
+### Free and private: a model on your own computer (Ollama)
+
+Lumen can use a model like Qwen running on your computer with [Ollama](https://ollama.com): no keys, no limits,
+and your books never leave your home network. When it's set up, it takes priority; when your computer is off or
+the tablet is on another network, Lumen quietly falls back to Claude or Gemini.
+
+1. Install Ollama on your computer and download a model. `qwen3.5:9b` (6.6 GB) fits entirely on a 12 GB GPU and
+   answers well in English and Spanish:
+
+   ```bash
+   ollama pull qwen3.5:9b
+   ```
+
+2. Let Ollama accept connections from your network and give it a 32K-token context. On Windows (then quit Ollama
+   from the tray and open it again):
+
+   ```bash
+   setx OLLAMA_HOST 0.0.0.0:11434
+   setx OLLAMA_CONTEXT_LENGTH 32768
+   ```
+
+3. Allow port 11434 through the firewall on your private (home) network, and make sure Windows treats that network
+   as Private.
+4. On the phone or tablet, open `http://<your-computer's-IP>:11434` in the browser: it should say "Ollama is
+   running". Then, in Lumen, go to Settings → "Free on your computer (Ollama)", enter that address and tap
+   *Save and check*.
+
+A local model's context window is much smaller than Gemini's or Claude's, so long books are trimmed to the most
+recent chapters plus earlier passages that mention what you asked about (starting with its first appearance).
+Answers are good for "who is this?" and recaps, but a little less precise than the big cloud models.
 
 ## How "no spoilers" works
 

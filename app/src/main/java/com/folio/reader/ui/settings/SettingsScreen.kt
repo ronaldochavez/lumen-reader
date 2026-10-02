@@ -12,6 +12,9 @@ import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import com.folio.reader.data.BackupManager
+import com.folio.reader.data.SettingsRepository
+import com.folio.reader.ai.OllamaService
+import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -124,6 +127,31 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
         testing.value = false
     }
 
+    // ---------- Local AI (Ollama) ----------
+
+    val localUrl = c.settings.localAiUrl.state(null)
+    val localModel = c.settings.localAiModel.state(SettingsRepository.DEFAULT_LOCAL_MODEL)
+    val localStatus = MutableStateFlow<String?>(null)
+    val localChecking = MutableStateFlow(false)
+
+    fun saveLocalAi(url: String, model: String) = viewModelScope.launch {
+        c.settings.setLocalAi(OllamaService.normalizeUrl(url), model)
+        c.ai.resetLocalReachability()
+        checkLocalAi()
+    }
+
+    fun clearLocalAi() = viewModelScope.launch {
+        c.settings.setLocalAi(null, null)
+        c.ai.resetLocalReachability()
+        localStatus.value = null
+    }
+
+    fun checkLocalAi() = viewModelScope.launch {
+        localChecking.value = true
+        localStatus.value = runCatching { "✓ " + c.ai.local.testConnection() }.getOrElse { AiService.friendlyError(it) }
+        localChecking.value = false
+    }
+
     val volumeKeys = c.settings.volumeKeysTurnPages.state(true)
     fun setVolumeKeys(on: Boolean) = viewModelScope.launch { c.settings.setVolumeKeysTurnPages(on) }
 
@@ -185,6 +213,10 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
     val testing by vm.testing.collectAsStateWithLifecycle()
     val appTheme by vm.appTheme.collectAsStateWithLifecycle()
     val accent by vm.accent.collectAsStateWithLifecycle()
+    val localUrl by vm.localUrl.collectAsStateWithLifecycle()
+    val localModel by vm.localModel.collectAsStateWithLifecycle()
+    val localStatus by vm.localStatus.collectAsStateWithLifecycle()
+    val localChecking by vm.localChecking.collectAsStateWithLifecycle()
     val volumeKeys by vm.volumeKeys.collectAsStateWithLifecycle()
     val dataBusy by vm.dataBusy.collectAsStateWithLifecycle()
     val dataStatus by vm.dataStatus.collectAsStateWithLifecycle()
@@ -322,6 +354,7 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                 Text("Answering now: ", style = MaterialTheme.typography.labelLarge)
                 Text(
                     when (provider) {
+                        AiProvider.LOCAL -> "$localModel · your computer"
                         AiProvider.CLAUDE -> "${model.label} · your key"
                         AiProvider.GEMINI -> "Gemini · free"
                         null -> "nobody yet — turn on an option below"
@@ -342,6 +375,45 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                 }
             }
             testResult?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 10.dp)) }
+        }
+
+        // ---- Local AI ----
+        Card {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Free on your computer (Ollama)", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                if (localUrl != null) Icon(Icons.Rounded.CheckCircle, "Active", tint = MaterialTheme.colorScheme.primary)
+            }
+            Text(
+                "Runs a model like Qwen on your own computer with Ollama: free, no limits, and your books never leave " +
+                    "home. Lumen uses it whenever your computer is on and on the same Wi-Fi, and falls back to the " +
+                    "options below when it isn't. Long books are trimmed to the most recent chapters plus earlier " +
+                    "passages about what you ask.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            if (localUrl != null) {
+                Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Computer, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text("  $localModel · $localUrl", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                }
+                Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = vm::checkLocalAi, enabled = !localChecking, shape = CircleShape) {
+                        if (localChecking) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Text("Check")
+                    }
+                    OutlinedButton(onClick = vm::clearLocalAi, shape = CircleShape) { Text("Remove") }
+                }
+            } else {
+                LocalAiInput(defaultModel = localModel, onSave = vm::saveLocalAi)
+                Text(
+                    "On your computer: install Ollama from ollama.com, run \"ollama pull ${SettingsRepository.DEFAULT_LOCAL_MODEL}\", " +
+                        "and let it accept connections from your network (see the README).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            localStatus?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 10.dp)) }
         }
 
         // ---- Free tier ----
@@ -466,7 +538,7 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
             Text(
                 "Your books, highlights and collections live only on this device. Keys are stored encrypted with the " +
                     "Android Keystore. When you use the AI, the book's text up to your position and your question are " +
-                    "sent to the active provider (Google or Anthropic).",
+                    "sent to the active provider: your own computer (Ollama), Google or Anthropic.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp),
@@ -584,6 +656,37 @@ private fun SavedKeyRow(text: String, onRemove: () -> Unit) {
         Icon(Icons.Rounded.Lock, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         Text("  $text", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         OutlinedButton(onClick = onRemove, shape = CircleShape) { Text("Remove") }
+    }
+}
+
+@Composable
+private fun LocalAiInput(defaultModel: String, onSave: (url: String, model: String) -> Unit) {
+    var url by remember { mutableStateOf("") }
+    var model by remember { mutableStateOf(defaultModel) }
+    Column(Modifier.padding(top = 12.dp)) {
+        OutlinedTextField(
+            value = url,
+            onValueChange = { url = it },
+            label = { Text("Your computer's address") },
+            placeholder = { Text("192.168.1.65") },
+            leadingIcon = { Icon(Icons.Rounded.Computer, null) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = model,
+            onValueChange = { model = it },
+            label = { Text("Model") },
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        )
+        Spacer(Modifier.height(10.dp))
+        Button(onClick = { onSave(url.trim(), model.trim()) }, enabled = url.isNotBlank() && model.isNotBlank(), shape = CircleShape) {
+            Text("Save and check")
+        }
     }
 }
 

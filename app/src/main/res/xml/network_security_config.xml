@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain http is needed for the local AI: Ollama runs on the reader's own computer at an address like
+  http://192.168.1.65:11434, and network security configs can't allow a whole private IP range. Every other
+  connection the app makes (Gemini, Anthropic) is https.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

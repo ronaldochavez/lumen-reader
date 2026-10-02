@@ -72,6 +72,18 @@ class SettingsRepository(private val context: Context) {
         val accent = intPreferencesKey("accent_argb")
         val ttsRate = floatPreferencesKey("tts_rate")
         val volumeKeys = booleanPreferencesKey("volume_keys_turn_pages")
+        val localAiUrl = stringPreferencesKey("local_ai_url")
+        val localAiModel = stringPreferencesKey("local_ai_model")
+    }
+
+    /** Address of an Ollama server on the reader's own computer (e.g. http://192.168.1.65:11434); null = off. */
+    val localAiUrl: Flow<String?> = context.dataStore.data.map { it[Keys.localAiUrl]?.takeIf(String::isNotBlank) }
+
+    val localAiModel: Flow<String> = context.dataStore.data.map { it[Keys.localAiModel]?.takeIf(String::isNotBlank) ?: DEFAULT_LOCAL_MODEL }
+
+    suspend fun setLocalAi(url: String?, model: String?) = context.dataStore.edit { p ->
+        if (url.isNullOrBlank()) p.remove(Keys.localAiUrl) else p[Keys.localAiUrl] = url.trim()
+        if (model.isNullOrBlank()) p.remove(Keys.localAiModel) else p[Keys.localAiModel] = model.trim()
     }
 
     /** Volume down = next page, volume up = previous, while reading (not while the voice is reading aloud). */
@@ -153,6 +165,10 @@ class SettingsRepository(private val context: Context) {
         if (key.isNullOrBlank()) p.remove(Keys.geminiKey) else p[Keys.geminiKey] = KeyCipher.encrypt(key.trim())
     }
 
+    companion object {
+        /** Fits a 12 GB GPU entirely and answers well in English and Spanish. */
+        const val DEFAULT_LOCAL_MODEL = "qwen3.5:9b"
+    }
 }
 
 /** Encrypts the API key with an AES-GCM key that never leaves the Android Keystore. */

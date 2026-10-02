@@ -125,7 +125,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
 
     val volumeKeys = c.settings.volumeKeysTurnPages
 
-    private val askController = AskController(viewModelScope, c) { selectionEnd -> buildAskContext(selectionEnd) }
+    private val askController = AskController(viewModelScope, c) { selection -> buildAskContext(selection?.end, selection?.text) }
     val ask = askController.state
 
     private val _js = Channel<JsCall>(Channel.UNLIMITED)
@@ -661,12 +661,12 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
     fun saveGeminiKey(key: String) = askController.saveGeminiKey(key)
 
     /** Text from the start of the book to the end of the visible page (or the selection, if it runs past it). */
-    private suspend fun buildAskContext(selectionEnd: Int?): BookContext {
+    private suspend fun buildAskContext(selectionEnd: Int?, selectionText: String?): BookContext {
         val s = _ui.value
         val book = s.book ?: error("Book not loaded")
         val cutoff = max(s.pageEnd, selectionEnd ?: 0)
         val partial = runCatching { Json.decodeFromString<String>(evalJs("Folio.textUpTo($cutoff)")) }.getOrNull()
-        return c.contextBuilder.build(book, s.chapters, s.spineIndex, s.progress, partial, c.ai.maxContextChars())
+        return c.contextBuilder.build(book, s.chapters, s.spineIndex, s.progress, partial, c.ai.maxContextChars(), focus = selectionText)
     }
 
     /** Captures the exact reading position for the character-graph screen. */

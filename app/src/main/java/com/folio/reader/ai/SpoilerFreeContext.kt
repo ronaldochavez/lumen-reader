@@ -3,6 +3,7 @@ package com.folio.reader.ai
 import com.folio.reader.data.BookRepository
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.ChapterEntity
+import com.folio.reader.ui.reader.SearchController
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -38,6 +39,8 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
     /**
      * @param currentPartial exact text of the current chapter up to the cut-off, as rendered. When null we fall
      * back to the stored chapter text cut at the saved reading fraction, trimmed back to a sentence boundary.
+     * @param focus what the reader asked about (the selected text). When early chapters don't fit [maxChars] (small
+     * local models), passages from them that mention it are kept, starting with its first appearance.
      */
     suspend fun build(
         book: BookEntity,
@@ -46,24 +49,42 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
         progress: Float,
         currentPartial: String?,
         maxChars: Int,
+        focus: String? = null,
     ): BookContext {
         val current = chapters.getOrNull(spineIndex)
         val currentText = currentPartial?.let(BookRepository::normalizeText)
             ?: cutAtFraction(books.chapterText(book.id, spineIndex), book.chapterFraction)
 
-        val prior = mutableListOf<String>()
+        data class Prior(val chapter: ChapterEntity, val text: String) {
+            val block = "<chapter n=\"${chapter.spineIndex + 1}\" title=\"${label(chapter)}\">\n$text\n</chapter>"
+        }
+        val prior = ArrayDeque<Prior>()
         for (ch in chapters.take(spineIndex)) {
             val text = books.chapterText(book.id, ch.spineIndex)
-            if (text.isBlank()) continue
-            prior += "<chapter n=\"${ch.spineIndex + 1}\" title=\"${label(ch)}\">\n$text\n</chapter>"
+            if (text.isNotBlank()) prior += Prior(ch, text)
         }
 
-        // Keep within the model's context window; drop the earliest chapters first and say so.
-        var dropped = 0
-        var total = prior.sumOf { it.length } + currentText.length
-        while (total > maxChars && prior.isNotEmpty()) {
-            total -= prior.removeAt(0).length
-            dropped++
+        // Keep within the model's context window: drop the earliest chapters first, keeping room for excerpts
+        // about the focus term from the chapters that get dropped.
+        val term = focus?.trim()?.take(80)?.takeIf { it.length >= 2 }
+        val excerptBudget = if (term != null) maxChars / 4 else 0
+        val removed = mutableListOf<Prior>()
+        var total = prior.sumOf { it.block.length } + currentText.length
+        while (total > maxChars - excerptBudget && prior.isNotEmpty()) {
+            val first = prior.removeFirst()
+            total -= first.block.length
+            removed += first
+        }
+        val excerpts = if (term != null && removed.isNotEmpty()) {
+            excerptsMentioning(term, removed.map { label(it.chapter) to it.text }, excerptBudget)
+        } else ""
+
+        val dropped = removed.size
+        val leftOut = if (dropped == 1) "the first chapter was left out" else "the first $dropped chapters were left out"
+        val note = when {
+            dropped == 0 -> null
+            excerpts.isNotEmpty() -> "This book is too long for this AI: $leftOut, except passages that mention \"$term\"."
+            else -> "This book is too long for this AI: $leftOut."
         }
 
         val currentBlock = buildString {
@@ -75,16 +96,55 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
         return BookContext(
             bookTitle = book.title,
             author = book.author,
-            priorChapters = prior.joinToString("\n\n"),
+            priorChapters = listOf(excerpts).filter(String::isNotEmpty).plus(prior.map { it.block }).joinToString("\n\n"),
             currentChapter = currentBlock,
             positionLabel = positionLabel(current, spineIndex, progress),
             spineIndex = spineIndex,
             progress = progress,
-            truncationNote = if (dropped > 0) "This book is very long: the first $dropped chapters were left out." else null,
+            truncationNote = note,
         )
     }
 
     companion object {
+        /**
+         * Passages (about [EXCERPT_RADIUS] chars on each side) from [chapters] that mention [term], ignoring case and
+         * accents: the first mention always, then mentions spread evenly through the rest, within [budget] chars.
+         */
+        internal fun excerptsMentioning(term: String, chapters: List<Pair<String, String>>, budget: Int): String {
+            val pattern = SearchController.patternFor(term)
+            data class Hit(val chapter: String, val text: String, val at: Int)
+            val hits = chapters.flatMap { (label, text) ->
+                pattern.findAll(SearchController.fold(text)).map { Hit(label, text, it.range.first) }.toList()
+            }
+            if (hits.isEmpty()) return ""
+            val perExcerpt = 2 * EXCERPT_RADIUS + 80
+            val count = (budget / perExcerpt).coerceIn(1, hits.size)
+            // Indices spread over all hits, always including the first one (where the term first appears).
+            val picked = (0 until count).map { i -> if (count == 1) 0 else i * (hits.size - 1) / (count - 1) }.distinct()
+            return buildString {
+                append("<excerpts note=\"Earlier chapters were left out to save space; these passages from them mention '")
+                append(term.replace("\"", "'")).append("'.\">\n")
+                var lastEnd = -1
+                var lastText: String? = null
+                for (i in picked) {
+                    val h = hits[i]
+                    var start = (h.at - EXCERPT_RADIUS).coerceAtLeast(0)
+                    val end = (h.at + EXCERPT_RADIUS).coerceAtMost(h.text.length)
+                    if (h.text === lastText && start < lastEnd) start = lastEnd // don't repeat overlapping text
+                    if (start >= end) continue
+                    // Start and end on word boundaries.
+                    val s = if (start == 0) 0 else h.text.indexOf(' ', start).let { if (it in start until end) it + 1 else start }
+                    val e = if (end == h.text.length) end else h.text.lastIndexOf(' ', end).let { if (it > s) it else end }
+                    append("[").append(h.chapter).append("] …").append(h.text.substring(s, e).trim()).append("…\n")
+                    lastEnd = end
+                    lastText = h.text
+                }
+                append("</excerpts>")
+            }
+        }
+
+        private const val EXCERPT_RADIUS = 450
+
         /** Opening of the cut-off marker; the prompts refer to it as "[THE READER IS HERE ...]". */
         const val READER_MARKER = "[THE READER IS HERE."
 

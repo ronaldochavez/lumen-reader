@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.folio.reader.ai.AiService
 import com.folio.reader.ai.ClaudeService
 import com.folio.reader.ai.GeminiService
+import com.folio.reader.ai.OllamaService
 import com.folio.reader.ai.ReadingSnapshotCache
 import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.data.BackupManager
@@ -37,7 +38,7 @@ class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
     val books = BookRepository(context, db)
     val stats = StatsRepository(db, settings)
-    val ai = AiService(settings, ClaudeService(settings), GeminiService(settings))
+    val ai = AiService(settings, ClaudeService(settings), GeminiService(settings), OllamaService(settings))
     val contextBuilder = SpoilerFreeContextBuilder(books)
     val snapshots = ReadingSnapshotCache()
     val backup = BackupManager(context, db, books)
