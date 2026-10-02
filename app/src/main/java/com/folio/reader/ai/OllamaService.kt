@@ -49,17 +49,29 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
         if (reason == "length") emit(AiEvent.Truncated)
     }.flowOn(Dispatchers.IO)
 
+    /**
+     * Streamed even though only the final JSON matters: a home GPU writes a character map in a minute or two, and the
+     * read timeout then applies between chunks instead of to the whole answer.
+     */
     override suspend fun extractStructured(context: BookContext, task: StructuredTask): String = withContext(Dispatchers.IO) {
         val messages = listOf(
             "system" to task.system,
-            "user" to Prompts.bookHeader(context) + bookBody(context) + "\n\n" + task.instruction(context),
+            "user" to Prompts.bookHeader(context) + bookBody(context) + "\n\n" + task.instruction(context) + " " + task.compact,
         )
         val body = chatBody(
-            model(), messages, stream = false, format = Prompts.toJson(task.schema) as JsonObject, think = think(), numCtx = numCtx(),
+            model(), messages, stream = true, format = Prompts.toJson(task.schema) as JsonObject,
+            maxTokens = MAX_STRUCTURED_TOKENS, think = think(), numCtx = numCtx(),
         )
-        val response = stream(body).use { json.parseToJsonElement(it.readText()).jsonObject }
-        if (doneReason(response) == "length") throw IOException("The result came back incomplete; try again.")
-        chunkText(response).ifBlank { throw IOException("The local AI returned an empty answer.") }
+        val out = StringBuilder()
+        var reason: String? = null
+        stream(body).use { reader ->
+            for (chunk in ndjson(reader)) {
+                out.append(chunkText(chunk))
+                doneReason(chunk)?.let { reason = it }
+            }
+        }
+        if (reason == "length") throw IOException("The result came back incomplete; try again.")
+        out.toString().ifBlank { throw IOException("The local AI returned an empty answer.") }
     }
 
     override fun quick(system: String, user: String, maxTokens: Int): Flow<AiEvent> = flow {
@@ -164,8 +176,12 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
         const val NUM_CTX_DEEP = 65_536
         const val TEMPERATURE = 0.3
         const val DEFAULT_PORT = 11434
+        /** Cap on a character map / encyclopedia: a compact one is ~3-5K tokens; this stops a model stuck in a loop. */
+        private const val MAX_STRUCTURED_TOKENS = 8_000
         private const val CONNECT_TIMEOUT_MS = 4_000
-        private const val READ_TIMEOUT_MS = 300_000 // the first request also loads the model into the GPU
+        // Longest silence allowed between streamed chunks; the first one comes after the model loads and reads the
+        // whole book excerpt (with "Think before answering", after it finishes thinking).
+        private const val READ_TIMEOUT_MS = 300_000
         private const val REACH_TIMEOUT_MS = 1_500
 
         private val json = Json { ignoreUnknownKeys = true }

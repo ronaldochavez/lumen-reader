@@ -41,9 +41,22 @@ interface AiBackend {
 }
 
 /** A spoiler-free, schema-constrained extraction over the book: the character map or the encyclopedia. */
-enum class StructuredTask(val system: String, val schema: Map<String, Any>, private val verb: String) {
-    GRAPH(Prompts.GRAPH_SYSTEM, Prompts.GRAPH_SCHEMA, "the character and relationship map"),
-    ENCYCLOPEDIA(Prompts.ENCYCLOPEDIA_SYSTEM, Prompts.ENCYCLOPEDIA_SCHEMA, "the book encyclopedia");
+enum class StructuredTask(
+    val system: String,
+    val schema: Map<String, Any>,
+    private val verb: String,
+    /** Extra instruction for slower local models, which would take many minutes to write the full-size result. */
+    val compact: String,
+) {
+    GRAPH(
+        Prompts.GRAPH_SYSTEM, Prompts.GRAPH_SCHEMA, "the character and relationship map",
+        "Keep it compact: at most 20 characters and 30 relationships, each description one short sentence.",
+    ),
+    ENCYCLOPEDIA(
+        Prompts.ENCYCLOPEDIA_SYSTEM, Prompts.ENCYCLOPEDIA_SCHEMA, "the book encyclopedia",
+        "Keep it compact: at most 25 entries, at most 2 facts and 3 related names each, one-sentence descriptions. " +
+            "Never include people or characters (not even the protagonist): only places, objects, terms, factions and events.",
+    );
 
     // The reader's language goes here, not in the (cached) system prompt.
     fun instruction(context: BookContext) =
