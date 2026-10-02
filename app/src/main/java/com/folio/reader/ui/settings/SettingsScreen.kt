@@ -133,6 +133,10 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     val localModel = c.settings.localAiModel.state(SettingsRepository.DEFAULT_LOCAL_MODEL)
     val localStatus = MutableStateFlow<String?>(null)
     val localChecking = MutableStateFlow(false)
+    val localDeep = c.settings.localAiDeep.state(false)
+    val localThink = c.settings.localAiThink.state(false)
+    fun setLocalDeep(on: Boolean) = viewModelScope.launch { c.settings.setLocalAiDeep(on) }
+    fun setLocalThink(on: Boolean) = viewModelScope.launch { c.settings.setLocalAiThink(on) }
 
     fun saveLocalAi(url: String, model: String) = viewModelScope.launch {
         c.settings.setLocalAi(OllamaService.normalizeUrl(url), model)
@@ -217,6 +221,8 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
     val localModel by vm.localModel.collectAsStateWithLifecycle()
     val localStatus by vm.localStatus.collectAsStateWithLifecycle()
     val localChecking by vm.localChecking.collectAsStateWithLifecycle()
+    val localDeep by vm.localDeep.collectAsStateWithLifecycle()
+    val localThink by vm.localThink.collectAsStateWithLifecycle()
     val volumeKeys by vm.volumeKeys.collectAsStateWithLifecycle()
     val dataBusy by vm.dataBusy.collectAsStateWithLifecycle()
     val dataStatus by vm.dataStatus.collectAsStateWithLifecycle()
@@ -403,6 +409,20 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                     }
                     OutlinedButton(onClick = vm::clearLocalAi, shape = CircleShape) { Text("Remove") }
                 }
+                SwitchRow(
+                    title = "Read more of the book",
+                    subtitle = "Sends about 2.5× more text, so long books are trimmed less. Useful for recaps; for " +
+                        "\"who is this?\" it doesn't help much. Answers take about twice as long.",
+                    checked = localDeep,
+                    onChange = vm::setLocalDeep,
+                )
+                SwitchRow(
+                    title = "Think before answering",
+                    subtitle = "The model reasons over the text before answering: careful, but answers can take a minute " +
+                        "or more.",
+                    checked = localThink,
+                    onChange = vm::setLocalThink,
+                )
             } else {
                 LocalAiInput(defaultModel = localModel, onSave = vm::saveLocalAi)
                 Text(
@@ -656,6 +676,18 @@ private fun SavedKeyRow(text: String, onRemove: () -> Unit) {
         Icon(Icons.Rounded.Lock, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         Text("  $text", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         OutlinedButton(onClick = onRemove, shape = CircleShape) { Text("Remove") }
+    }
+}
+
+@Composable
+private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }
 

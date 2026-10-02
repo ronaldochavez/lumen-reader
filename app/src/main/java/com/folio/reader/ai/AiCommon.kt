@@ -106,6 +106,8 @@ object Prompts {
           events, hidden identities, twists, deaths, or how relationships evolve. If something is still open at
           this point, say it remains unresolved so far.
         - If the text doesn't answer the question, say so plainly instead of guessing.
+        - Every detail you state must be in the text. Don't fill gaps with plausible-sounding details; a shorter
+          answer is better than an invented one.
         - Sometimes early chapters are left out to save space and an <excerpts> block stands in for them: treat
           those passages as part of the book, and don't assume anything about what was left out.
 

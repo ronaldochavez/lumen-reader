@@ -1,6 +1,7 @@
 package com.folio.reader.ai
 
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.double
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -50,6 +51,11 @@ class OllamaRequestTest {
         val options = body["options"]!!.jsonObject
         assertEquals(OllamaService.NUM_CTX, options["num_ctx"]!!.jsonPrimitive.int)
         assertEquals(64, options["num_predict"]!!.jsonPrimitive.int)
+        assertEquals(OllamaService.TEMPERATURE, options["temperature"]!!.jsonPrimitive.double, 0.0)
+
+        val deep = OllamaService.chatBody("qwen3.5:9b", listOf("user" to "hi"), stream = false, think = true, numCtx = OllamaService.NUM_CTX_DEEP)
+        assertTrue(deep["think"]!!.jsonPrimitive.boolean)
+        assertEquals(OllamaService.NUM_CTX_DEEP, deep["options"]!!.jsonObject["num_ctx"]!!.jsonPrimitive.int)
         assertEquals("hi", body["messages"]!!.jsonArray[0].jsonObject["content"]!!.jsonPrimitive.content)
         assertFalse(body.containsKey("format"))
     }

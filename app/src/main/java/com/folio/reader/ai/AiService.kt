@@ -72,7 +72,7 @@ class AiService(
 
     /** How much book text (in chars) the provider that will answer can take in one request. */
     suspend fun maxContextChars(): Int = when (currentProvider()) {
-        AiProvider.LOCAL -> OllamaService.MAX_CONTEXT_CHARS
+        AiProvider.LOCAL -> local.maxContextChars()
         AiProvider.GEMINI -> GeminiService.MAX_CONTEXT_CHARS
         else -> settings.model.first().maxContextChars
     }

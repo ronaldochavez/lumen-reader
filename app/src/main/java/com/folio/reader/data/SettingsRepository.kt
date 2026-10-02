@@ -74,7 +74,22 @@ class SettingsRepository(private val context: Context) {
         val volumeKeys = booleanPreferencesKey("volume_keys_turn_pages")
         val localAiUrl = stringPreferencesKey("local_ai_url")
         val localAiModel = stringPreferencesKey("local_ai_model")
+        val localAiThink = booleanPreferencesKey("local_ai_think")
+        val localAiDeep = booleanPreferencesKey("local_ai_deep")
     }
+
+    /**
+     * Send the local model ~2.5x more of the book (64K-token window). Measured with qwen3.5:9b on a real question:
+     * twice as slow and no more accurate for "who is this?"; worth it mainly for recaps. Off by default.
+     */
+    val localAiDeep: Flow<Boolean> = context.dataStore.data.map { it[Keys.localAiDeep] ?: false }
+
+    suspend fun setLocalAiDeep(on: Boolean) = context.dataStore.edit { it[Keys.localAiDeep] = on }
+
+    /** Let the local model reason before answering: slower but more careful. */
+    val localAiThink: Flow<Boolean> = context.dataStore.data.map { it[Keys.localAiThink] ?: false }
+
+    suspend fun setLocalAiThink(on: Boolean) = context.dataStore.edit { it[Keys.localAiThink] = on }
 
     /** Address of an Ollama server on the reader's own computer (e.g. http://192.168.1.65:11434); null = off. */
     val localAiUrl: Flow<String?> = context.dataStore.data.map { it[Keys.localAiUrl]?.takeIf(String::isNotBlank) }

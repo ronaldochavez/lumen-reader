@@ -75,21 +75,30 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
             total -= first.block.length
             removed += first
         }
-        val excerpts = if (term != null && removed.isNotEmpty()) {
-            excerptsMentioning(term, removed.map { label(it.chapter) to it.text }, excerptBudget)
+        // The current chapter alone may not fit either (some books are a few huge "parts"): its beginning is cut too.
+        val currentBudget = maxChars - excerptBudget
+        val currentHead = currentText.dropLast(currentBudget)
+        val excerptSources = removed.map { label(it.chapter) to it.text } +
+            listOfNotNull(currentHead.takeIf { it.isNotBlank() }?.let { "${current?.let(::label).orEmpty()} (earlier pages)" to it })
+        val excerpts = if (term != null && excerptSources.isNotEmpty()) {
+            excerptsMentioning(term, excerptSources, excerptBudget)
         } else ""
 
         val dropped = removed.size
-        val leftOut = if (dropped == 1) "the first chapter was left out" else "the first $dropped chapters were left out"
+        val leftOut = when {
+            dropped == 0 -> "the start of this chapter was left out"
+            dropped == 1 -> "the first chapter was left out"
+            else -> "the first $dropped chapters were left out"
+        }
         val note = when {
-            dropped == 0 -> null
+            dropped == 0 && currentHead.isEmpty() -> null
             excerpts.isNotEmpty() -> "This book is too long for this AI: $leftOut, except passages that mention \"$term\"."
             else -> "This book is too long for this AI: $leftOut."
         }
 
         val currentBlock = buildString {
             append("<chapter n=\"${spineIndex + 1}\" title=\"${current?.let(::label).orEmpty()}\" status=\"in progress\">\n")
-            append(currentText.takeLast(maxChars))
+            append(currentText.takeLast(currentBudget))
             append("\n$READER_MARKER The book's text ends at this point for you.]\n</chapter>")
         }
 

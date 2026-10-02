@@ -39,7 +39,8 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
 
     override fun ask(context: BookContext, selection: String?, history: List<ChatTurn>, question: String): Flow<AiEvent> = flow {
         var reason: String? = null
-        stream(chatBody(model(), askMessages(context, selection, history, question), stream = true)).use { reader ->
+        val body = chatBody(model(), askMessages(context, selection, history, question), stream = true, think = think(), numCtx = numCtx())
+        stream(body).use { reader ->
             for (chunk in ndjson(reader)) {
                 chunkText(chunk).takeIf { it.isNotEmpty() }?.let { emit(AiEvent.Delta(it)) }
                 doneReason(chunk)?.let { reason = it }
@@ -53,14 +54,18 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
             "system" to task.system,
             "user" to Prompts.bookHeader(context) + bookBody(context) + "\n\n" + task.instruction(context),
         )
-        val body = chatBody(model(), messages, stream = false, format = Prompts.toJson(task.schema) as JsonObject)
+        val body = chatBody(
+            model(), messages, stream = false, format = Prompts.toJson(task.schema) as JsonObject, think = think(), numCtx = numCtx(),
+        )
         val response = stream(body).use { json.parseToJsonElement(it.readText()).jsonObject }
         if (doneReason(response) == "length") throw IOException("The result came back incomplete; try again.")
         chunkText(response).ifBlank { throw IOException("The local AI returned an empty answer.") }
     }
 
     override fun quick(system: String, user: String, maxTokens: Int): Flow<AiEvent> = flow {
-        stream(chatBody(model(), listOf("system" to system, "user" to user), stream = true, maxTokens = maxTokens)).use { reader ->
+        // Same window as the other requests: changing num_ctx makes Ollama reload the model.
+        val body = chatBody(model(), listOf("system" to system, "user" to user), stream = true, maxTokens = maxTokens, numCtx = numCtx())
+        stream(body).use { reader ->
             for (chunk in ndjson(reader)) chunkText(chunk).takeIf { it.isNotEmpty() }?.let { emit(AiEvent.Delta(it)) }
         }
     }.flowOn(Dispatchers.IO)
@@ -71,7 +76,8 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
         if (installed.none { it == model || it == "$model:latest" }) {
             throw IOException("The model $model isn't downloaded on your computer. Run: ollama pull $model")
         }
-        val reply = stream(chatBody(model, listOf("user" to "Reply only with: Ready to read with you!"), stream = false, maxTokens = 64))
+        val ping = chatBody(model, listOf("user" to "Reply only with: Ready to read with you!"), stream = false, maxTokens = 64, numCtx = numCtx())
+        val reply = stream(ping)
             .use { chunkText(json.parseToJsonElement(it.readText()).jsonObject) }
         "$model · ${reply.trim().ifBlank { "Connection OK." }}"
     }
@@ -104,6 +110,14 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
     private suspend fun baseUrl(): String? = settings.localAiUrl.first()?.let(::normalizeUrl)
 
     private suspend fun model(): String = settings.localAiModel.first()
+
+    /** "Think before answering": slower, but checks the text before answering (fewer invented details). */
+    private suspend fun think(): Boolean = settings.localAiThink.first()
+
+    private suspend fun numCtx(): Int = if (settings.localAiDeep.first()) NUM_CTX_DEEP else NUM_CTX
+
+    /** How much book text fits this mode's context window (see [MAX_CONTEXT_CHARS]). */
+    suspend fun maxContextChars(): Int = if (settings.localAiDeep.first()) MAX_CONTEXT_CHARS_DEEP else MAX_CONTEXT_CHARS
 
     private fun open(url: String, method: String): HttpURLConnection {
         val conn = URL(url).openConnection() as HttpURLConnection
@@ -140,6 +154,15 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
          */
         const val MAX_CONTEXT_CHARS = 70_000
         const val NUM_CTX = 32_768
+
+        /**
+         * "Deep" mode: a 64K-token window, ~45K tokens of book. Measured on an RTX 4070 Ti with qwen3.5:9b: the model
+         * plus that window take 7.6 GB, and reading 45K tokens takes ~23 s. Hybrid models like Qwen 3.5 can't reuse a
+         * cached prompt, so every question re-reads it. (128K needs ~10 GB and spills out of a 12 GB card.)
+         */
+        const val MAX_CONTEXT_CHARS_DEEP = 170_000
+        const val NUM_CTX_DEEP = 65_536
+        const val TEMPERATURE = 0.3
         const val DEFAULT_PORT = 11434
         private const val CONNECT_TIMEOUT_MS = 4_000
         private const val READ_TIMEOUT_MS = 300_000 // the first request also loads the model into the GPU
@@ -170,23 +193,30 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
             }
         }
 
-        /** Thinking is off: on a home GPU it would double the wait for little gain on these questions. */
+        /**
+         * Thinking is off unless the reader turns it on: on a home GPU it roughly doubles the wait. The temperature is
+         * low because these are questions about facts in the text, not creative writing (the model's default is 1.0,
+         * which makes small models embellish).
+         */
         internal fun chatBody(
             model: String,
             messages: List<Pair<String, String>>,
             stream: Boolean,
             format: JsonObject? = null,
             maxTokens: Int? = null,
+            think: Boolean = false,
+            numCtx: Int = NUM_CTX,
         ): JsonObject = buildJsonObject {
             put("model", model)
             put("stream", stream)
-            put("think", false)
+            put("think", think)
             putJsonArray("messages") {
                 messages.forEach { (role, content) -> add(buildJsonObject { put("role", role); put("content", content) }) }
             }
             format?.let { put("format", it) }
             putJsonObject("options") {
-                put("num_ctx", NUM_CTX)
+                put("num_ctx", numCtx)
+                put("temperature", TEMPERATURE)
                 maxTokens?.let { put("num_predict", it) }
             }
         }
