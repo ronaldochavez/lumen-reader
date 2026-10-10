@@ -13,6 +13,10 @@ import kotlin.random.Random
 /**
  * Fruchterman–Reingold layout. Important characters start near the centre and get a gentle pull towards it,
  * so protagonists end up in the middle and minor characters orbit around them.
+ *
+ * Kept compact on purpose: repulsion only acts between nearby nodes, characters without relationships are pulled in
+ * harder (otherwise nothing holds them and they drift to the edges), and any stragglers are brought back to the
+ * outer ring at the end. A single far-away node would otherwise make "fit to screen" shrink everyone else.
  */
 object ForceLayout {
 
@@ -25,9 +29,10 @@ object ForceLayout {
             val a = index[r.source] ?: return@mapNotNull null
             val b = index[r.target] ?: return@mapNotNull null
             if (a == b) null else a to b
-        }
+        }.distinct()
 
         val n = nodes.size
+        val degree = IntArray(n).also { d -> edges.forEach { (a, b) -> d[a]++; d[b]++ } }
         val rnd = Random(42)
         val x = FloatArray(n)
         val y = FloatArray(n)
@@ -41,16 +46,22 @@ object ForceLayout {
         }
 
         val k = sqrt(size * size / n) * 0.62f
+        val cutoff = 3 * k
+        val gravity = FloatArray(n) { i ->
+            val base = 0.02f + 0.03f * (importance[nodes[i]] ?: 3)
+            if (degree[i] == 0) base + 0.12f else base
+        }
         var temperature = size / 8f
         val dx = FloatArray(n)
         val dy = FloatArray(n)
 
-        repeat(iterations) {
+        fun step(repulsionRange: Float, maxMove: Float, withEdges: Boolean) {
             dx.fill(0f); dy.fill(0f)
             for (i in 0 until n) for (j in i + 1 until n) {
                 var ddx = x[i] - x[j]
                 var ddy = y[i] - y[j]
                 var dist = sqrt(ddx * ddx + ddy * ddy)
+                if (dist > repulsionRange) continue
                 if (dist < 0.01f) { ddx = rnd.nextFloat(); ddy = rnd.nextFloat(); dist = 0.5f }
                 val force = k * k / dist
                 val fx = ddx / dist * force
@@ -58,7 +69,7 @@ object ForceLayout {
                 dx[i] += fx; dy[i] += fy
                 dx[j] -= fx; dy[j] -= fy
             }
-            for ((a, b) in edges) {
+            if (withEdges) for ((a, b) in edges) {
                 val ddx = x[a] - x[b]
                 val ddy = y[a] - y[b]
                 val dist = max(sqrt(ddx * ddx + ddy * ddy), 0.01f)
@@ -69,15 +80,38 @@ object ForceLayout {
                 dx[b] += fx; dy[b] += fy
             }
             for (i in 0 until n) {
-                val pull = 0.02f + 0.03f * (importance[nodes[i]] ?: 3)
-                dx[i] += (center - x[i]) * pull
-                dy[i] += (center - y[i]) * pull
+                dx[i] += (center - x[i]) * gravity[i]
+                dy[i] += (center - y[i]) * gravity[i]
                 val len = max(sqrt(dx[i] * dx[i] + dy[i] * dy[i]), 0.01f)
-                x[i] += dx[i] / len * min(len, temperature)
-                y[i] += dy[i] / len * min(len, temperature)
+                x[i] += dx[i] / len * min(len, maxMove)
+                y[i] += dy[i] / len * min(len, maxMove)
             }
+        }
+
+        repeat(iterations) {
+            step(cutoff, temperature, withEdges = true)
             temperature = max(temperature * 0.985f, 1.5f)
         }
+        pullInStragglers(x, y)
+        // Settle after moving stragglers: only short-range repulsion, so nodes don't overlap.
+        repeat(60) { step(k, 4f, withEdges = true) }
         return nodes.withIndex().associate { (i, id) -> id to Offset(x[i], y[i]) }
+    }
+
+    /** Nodes far beyond the bulk of the graph are moved back to just outside it (keeping their direction). */
+    internal fun pullInStragglers(x: FloatArray, y: FloatArray) {
+        val n = x.size
+        if (n < 4) return
+        val cx = x.average().toFloat()
+        val cy = y.average().toFloat()
+        val dist = FloatArray(n) { sqrt((x[it] - cx) * (x[it] - cx) + (y[it] - cy) * (y[it] - cy)) }
+        val ring = dist.sorted()[(n * 0.8f).toInt().coerceAtMost(n - 1)] * 1.2f
+        if (ring <= 0f) return
+        for (i in 0 until n) {
+            if (dist[i] <= ring) continue
+            val target = ring + (dist[i] - ring) * 0.15f
+            x[i] = cx + (x[i] - cx) / dist[i] * target
+            y[i] = cy + (y[i] - cy) / dist[i] * target
+        }
     }
 }

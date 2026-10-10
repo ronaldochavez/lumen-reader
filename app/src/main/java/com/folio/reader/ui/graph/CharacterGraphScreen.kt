@@ -96,6 +96,17 @@ import kotlin.math.hypot
 import kotlin.math.min
 
 import com.folio.reader.ai.RelationType
+import com.folio.reader.ui.reader.SearchController
+import androidx.compose.animation.core.animate
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.PersonSearch
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.draw.clipToBounds
 
 private val relationTypes = linkedMapOf(
     RelationType.FAMILY to ("Family" to Color(0xFFF2765A)),
@@ -127,6 +138,15 @@ fun CharacterGraphScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     var revealAhead by remember { mutableStateOf(false) }
     var tab by remember { mutableIntStateOf(0) }
+    var selected by remember(state.graph) { mutableStateOf<String?>(null) }
+    // Bumped to move the map's camera onto [selected] (when picked from a list, not tapped on the map).
+    var focusTick by remember { mutableIntStateOf(0) }
+    var picking by remember { mutableStateOf(false) }
+    fun showOnMap(id: String) {
+        selected = id
+        tab = 0
+        focusTick++
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -146,6 +166,7 @@ fun CharacterGraphScreen(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") } },
                 actions = {
                     if (state.graph != null && !state.loading) {
+                        IconButton(onClick = { picking = true }) { Icon(Icons.Rounded.PersonSearch, "Find a character") }
                         IconButton(onClick = vm::generate) { Icon(Icons.Rounded.Refresh, "Update to my page") }
                     }
                 },
@@ -173,7 +194,97 @@ fun CharacterGraphScreen(
                             ) { Text(label) }
                         }
                     }
-                    if (tab == 0) GraphMap(graph, Modifier.weight(1f)) else CharacterList(graph, Modifier.weight(1f))
+                    if (tab == 0) {
+                        GraphMap(
+                            graph = graph,
+                            selected = selected,
+                            onSelect = { selected = it },
+                            focusTick = focusTick,
+                            onFind = { picking = true },
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        CharacterList(graph, onShowOnMap = ::showOnMap, modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+
+    val graph = state.graph
+    if (picking && graph != null) {
+        CharacterPicker(graph, onPick = { picking = false; showOnMap(it) }, onDismiss = { picking = false })
+    }
+}
+
+/** Characters sorted by importance, filtered by name, alias or group (ignoring case and accents). */
+private fun searchCharacters(graph: GraphData, query: String): List<GraphCharacter> {
+    val q = SearchController.fold(query.trim())
+    return graph.characters
+        .filter { ch -> q.isEmpty() || (listOf(ch.name, ch.group) + ch.aliases).any { SearchController.fold(it).contains(q) } }
+        .sortedWith(compareByDescending<GraphCharacter> { it.importance }.thenBy { it.name.lowercase() })
+}
+
+private fun initialsOf(name: String) =
+    name.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
+
+/** A searchable list of everyone on the map: for crowded books, finding a person by name beats hunting for a dot. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CharacterPicker(graph: GraphData, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    val results = remember(graph, query) { searchCharacters(graph, query) }
+    val degree = remember(graph) {
+        graph.relationships.flatMap { listOf(it.source, it.target) }.groupingBy { it }.eachCount()
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.85f)) {
+            Text("Find a character", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Name, nickname or family…") },
+                leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                singleLine = true,
+                shape = CircleShape,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+            )
+            Text(
+                if (results.size == 1) "1 character" else "${results.size} characters",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+            LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 24.dp)) {
+                items(results, key = { it.id }) { ch ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { onPick(ch.id) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(36.dp).clip(CircleShape).background(groupColor(ch.group)), contentAlignment = Alignment.Center) {
+                            Text(initialsOf(ch.name), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        }
+                        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                            Text(ch.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                            val sub = listOfNotNull(
+                                ch.group.takeIf { it.isNotBlank() },
+                                ch.aliases.takeIf { it.isNotEmpty() }?.joinToString(", ", prefix = "also "),
+                            ).joinToString(" · ")
+                            if (sub.isNotEmpty()) {
+                                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                            }
+                        }
+                        val n = degree[ch.id] ?: 0
+                        Text(
+                            if (n == 1) "1 link" else "$n links",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -201,17 +312,31 @@ private fun StatusBanner(state: GraphUiState, onRegenerate: () -> Unit) {
 }
 
 @Composable
-private fun GraphMap(graph: GraphData, modifier: Modifier) {
+private fun GraphMap(
+    graph: GraphData,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+    focusTick: Int,
+    onFind: () -> Unit,
+    modifier: Modifier,
+) {
     val layout by produceState<Map<String, Offset>?>(null, graph) {
         value = withContext(Dispatchers.Default) { ForceLayout.compute(graph) }
     }
-    var selected by remember(graph) { mutableStateOf<String?>(null) }
     var filter by remember(graph) { mutableStateOf<String?>(null) }
     val byId = remember(graph) { graph.characters.associateBy { it.id } }
     val presentTypes = remember(graph) { relationTypes.keys.filter { t -> graph.relationships.any { it.kind == t } } }
 
     Column(modifier) {
         LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                AssistChip(
+                    onClick = onFind,
+                    label = { Text("Find") },
+                    leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(18.dp)) },
+                    shape = CircleShape,
+                )
+            }
             items(presentTypes) { t ->
                 val (label, color) = relationTypes.getValue(t)
                 FilterChip(
@@ -223,10 +348,12 @@ private fun GraphMap(graph: GraphData, modifier: Modifier) {
                 )
             }
         }
-        Box(Modifier.fillMaxSize()) {
+        // clipToBounds: zoomed or panned, the drawing must stay inside the map area instead of covering the chips,
+        // the Map/List switch and the top bar.
+        Box(Modifier.fillMaxSize().padding(top = 8.dp).clipToBounds()) {
             val positions = layout
             if (positions != null) {
-                GraphCanvas(graph, positions, selected, filter, onSelect = { selected = it }, modifier = Modifier.fillMaxSize())
+                GraphCanvas(graph, positions, selected, filter, focusTick, onSelect = onSelect, modifier = Modifier.fillMaxSize())
             }
             androidx.compose.animation.AnimatedVisibility(
                 visible = selected != null,
@@ -235,7 +362,7 @@ private fun GraphMap(graph: GraphData, modifier: Modifier) {
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 selected?.let { id -> byId[id] }?.let { ch ->
-                    CharacterCard(ch, graph, byId, onClose = { selected = null }, onSelect = { selected = it })
+                    CharacterCard(ch, graph, byId, onClose = { onSelect(null) }, onSelect = onSelect)
                 }
             }
         }
@@ -248,6 +375,7 @@ private fun GraphCanvas(
     positions: Map<String, Offset>,
     selected: String?,
     filter: String?,
+    focusTick: Int,
     onSelect: (String?) -> Unit,
     modifier: Modifier,
 ) {
@@ -274,6 +402,21 @@ private fun GraphCanvas(
         val cy = (ys.max() + ys.min()) / 2
         scale = s
         pan = Offset(canvasSize.width / 2f - cx * s, canvasSize.height / 2f - cy * s)
+    }
+
+    // Picked from the list: glide to that character, zooming in if the map is far out. It's placed in the upper
+    // part of the map because the character card covers the bottom.
+    LaunchedEffect(focusTick, positions, canvasSize) {
+        val target = selected?.let { positions[it] } ?: return@LaunchedEffect
+        if (focusTick == 0 || canvasSize == IntSize.Zero) return@LaunchedEffect
+        val fromScale = scale
+        val fromPan = pan
+        val toScale = maxOf(scale, 1.2f)
+        val toPan = Offset(canvasSize.width / 2f - target.x * toScale, canvasSize.height * 0.32f - target.y * toScale)
+        animate(0f, 1f, animationSpec = tween(450)) { t, _ ->
+            scale = fromScale + (toScale - fromScale) * t
+            pan = fromPan + (toPan - fromPan) * t
+        }
     }
 
     val neighbors = remember(selected, graph) {
@@ -446,23 +589,42 @@ private fun RelationRow(selfId: String, r: GraphRelation, byId: Map<String, Grap
 }
 
 @Composable
-private fun CharacterList(graph: GraphData, modifier: Modifier) {
+private fun CharacterList(graph: GraphData, onShowOnMap: (String) -> Unit, modifier: Modifier) {
     val byId = remember(graph) { graph.characters.associateBy { it.id } }
     var expanded by remember(graph) { mutableStateOf<String?>(null) }
+    var query by remember(graph) { mutableStateOf("") }
+    val results = remember(graph, query) { searchCharacters(graph, query) }
     LazyColumn(modifier, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(graph.characters.sortedByDescending { it.importance }, key = { it.id }) { ch ->
+        item {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Search characters…") },
+                leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                singleLine = true,
+                shape = CircleShape,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (results.isEmpty()) {
+            item {
+                Text("Nobody by that name so far.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(8.dp))
+            }
+        }
+        items(results, key = { it.id }) { ch ->
             Surface(
                 onClick = { expanded = if (expanded == ch.id) null else ch.id },
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surfaceContainer,
             ) {
-                Column(Modifier.padding(16.dp)) {
+                Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(12.dp).clip(CircleShape).background(groupColor(ch.group)))
                         Text("  ${ch.name}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         Text("★".repeat(ch.importance.coerceIn(1, 5)), color = Folio.Mustard, style = MaterialTheme.typography.labelSmall)
+                        IconButton(onClick = { onShowOnMap(ch.id) }) { Icon(Icons.Rounded.MyLocation, "Show on the map") }
                     }
-                    Text(ch.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
+                    Text(ch.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 12.dp))
                     if (expanded == ch.id) {
                         graph.relationships.filter { it.source == ch.id || it.target == ch.id }.forEach { r ->
                             RelationRow(ch.id, r, byId) { expanded = it }
