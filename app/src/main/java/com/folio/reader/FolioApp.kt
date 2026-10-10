@@ -17,6 +17,7 @@ import com.folio.reader.data.BookRepository
 import com.folio.reader.data.SettingsRepository
 import com.folio.reader.data.StatsRepository
 import com.folio.reader.data.db.AppDatabase
+import com.folio.reader.data.dictionary.DictionaryRepository
 
 class FolioApp : Application() {
     lateinit var container: AppContainer
@@ -42,6 +43,7 @@ class AppContainer(context: Context) {
     val contextBuilder = SpoilerFreeContextBuilder(books)
     val snapshots = ReadingSnapshotCache()
     val backup = BackupManager(context, db, books)
+    val dictionary = DictionaryRepository(context)
 }
 
 val CreationExtras.container: AppContainer

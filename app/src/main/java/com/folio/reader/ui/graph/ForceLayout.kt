@@ -95,7 +95,38 @@ object ForceLayout {
         pullInStragglers(x, y)
         // Settle after moving stragglers: only short-range repulsion, so nodes don't overlap.
         repeat(60) { step(k, 4f, withEdges = true) }
+        separate(x, y, FloatArray(n) { nodeRadius(importance[nodes[it]] ?: 3) })
         return nodes.withIndex().associate { (i, id) -> id to Offset(x[i], y[i]) }
+    }
+
+    /** Radius a node is drawn with (CharacterGraphScreen), in layout units. */
+    fun nodeRadius(importance: Int) = 16f + importance.coerceIn(1, 5) * 6f
+
+    /** Room for the name drawn under each circle. */
+    private const val LABEL_GAP = 46f
+
+    /**
+     * Pushes apart any two nodes whose circles (plus room for their names) overlap. Gravity packs the protagonists
+     * into the middle, and they're also the biggest circles, so without this the centre of the map is a pile-up.
+     */
+    internal fun separate(x: FloatArray, y: FloatArray, radius: FloatArray, rounds: Int = 120) {
+        val n = x.size
+        repeat(rounds) {
+            var moved = false
+            for (i in 0 until n) for (j in i + 1 until n) {
+                var dx = x[j] - x[i]
+                var dy = y[j] - y[i]
+                var d = sqrt(dx * dx + dy * dy)
+                val need = radius[i] + radius[j] + LABEL_GAP
+                if (d >= need) continue
+                if (d < 0.01f) { dx = 1f; dy = 0f; d = 1f }
+                val push = (need - d) / 2f
+                x[i] -= dx / d * push; y[i] -= dy / d * push
+                x[j] += dx / d * push; y[j] += dy / d * push
+                moved = true
+            }
+            if (!moved) return
+        }
     }
 
     /** Nodes far beyond the bulk of the graph are moved back to just outside it (keeping their direction). */

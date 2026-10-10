@@ -95,6 +95,8 @@ import com.folio.reader.ai.GeminiService
 import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.data.ReaderSettings
 import com.folio.reader.data.ReaderTheme
+import com.folio.reader.data.dictionary.DictionaryResult
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import com.folio.reader.data.db.BookmarkEntity
 import com.folio.reader.data.db.HighlightEntity
 import com.folio.reader.ui.components.markdownLite
@@ -158,6 +160,7 @@ fun TocSheet(ui: ReaderUiState, onDismiss: () -> Unit, onSelect: (Int, String?) 
 fun DefineSheet(
     state: DefineState,
     onDismiss: () -> Unit,
+    onExplainWithAi: () -> Unit,
     onAskMore: () -> Unit,
     onCopy: (String) -> Unit,
     onSaveGeminiKey: (String) -> Unit,
@@ -172,38 +175,111 @@ fun DefineSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Translate, null, tint = MaterialTheme.colorScheme.primary)
-                Text("  Define", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Icon(Icons.AutoMirrored.Rounded.MenuBook, null, tint = MaterialTheme.colorScheme.primary)
+                Text("  Dictionary", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
-            Text(
-                state.selection.text.trim().take(120),
-                style = MaterialTheme.typography.headlineSmall,
-                fontFamily = SerifDisplay,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val dictionary = state.dictionary
             when {
-                state.needsKey && state.error != null -> FreeAiSetupCard(onSaveGeminiKey, onOpenSettings)
-                state.error != null -> Text(state.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                state.text.isBlank() && state.streaming -> TypingDots()
-                else -> Text(
-                    markdownLite(state.text),
-                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
-                    fontFamily = FontFamily.Serif,
-                )
+                state.lookingUp -> TypingDots()
+                dictionary != null -> DictionaryEntries(dictionary)
+                else -> {
+                    Text(state.selection.text.trim().take(120), style = MaterialTheme.typography.headlineSmall, fontFamily = SerifDisplay, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        "Not in the offline dictionary. Names, rare words and expressions are often explained better in context:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            if (state.error == null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onAskMore, shape = CircleShape) {
-                        Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp))
-                        Text("  Ask more")
+
+            // The AI explanation, only on request: it costs AI credits (or a turn on your computer's model).
+            if (!state.lookingUp) {
+                HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                if (!state.aiRequested) {
+                    Button(onClick = onExplainWithAi, shape = CircleShape) {
+                        Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp))
+                        Text("  Explain in this passage (AI)")
                     }
-                    if (!state.streaming && state.text.isNotBlank()) {
-                        TextButton(onClick = { onCopy(state.text.replace("**", "")) }) { Text("Copy") }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        Text("  In this passage", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                    when {
+                        state.needsKey && state.error != null -> FreeAiSetupCard(onSaveGeminiKey, onOpenSettings)
+                        state.error != null -> Text(state.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                        state.text.isBlank() && state.streaming -> TypingDots()
+                        else -> Text(
+                            markdownLite(state.text),
+                            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                            fontFamily = FontFamily.Serif,
+                        )
+                    }
+                    if (state.error == null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = onAskMore, shape = CircleShape) {
+                                Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp))
+                                Text("  Ask more")
+                            }
+                            if (!state.streaming && state.text.isNotBlank()) {
+                                TextButton(onClick = { onCopy(state.text.replace("**", "")) }) { Text("Copy") }
+                            }
+                        }
                     }
                 }
             }
+            dictionary?.let {
+                Text(it.attribution, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
+    }
+}
+
+/** Headwords with their senses grouped by part of speech; long entries start collapsed. */
+@Composable
+private fun DictionaryEntries(result: DictionaryResult) {
+    var showAll by remember(result) { mutableStateOf(false) }
+    val totalSenses = result.entries.sumOf { it.senses.size }
+    result.entries.forEachIndexed { i, entry ->
+        val limit = if (showAll) Int.MAX_VALUE else if (i == 0) 4 else 2
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(entry.headword, style = MaterialTheme.typography.headlineSmall, fontFamily = SerifDisplay)
+                entry.inflectedFrom?.let {
+                    Text("  from “$it”", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            var number = 0
+            var lastPos: String? = null
+            entry.senses.take(limit).forEach { sense ->
+                if (sense.pos != lastPos) {
+                    lastPos = sense.pos
+                    number = 0
+                    Text(
+                        sense.pos,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                number++
+                Text("$number. ${sense.definition}", style = MaterialTheme.typography.bodyLarge, fontFamily = FontFamily.Serif)
+                sense.examples.take(1).forEach { ex ->
+                    Text(
+                        "“$ex”",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 14.dp),
+                    )
+                }
+            }
+        }
+    }
+    val shown = result.entries.withIndex().sumOf { (i, e) -> minOf(e.senses.size, if (i == 0) 4 else 2) }
+    if (!showAll && totalSenses > shown) {
+        TextButton(onClick = { showAll = true }) { Text("Show all ${totalSenses} meanings") }
     }
 }
 

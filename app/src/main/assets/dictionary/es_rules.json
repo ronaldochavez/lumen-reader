@@ -1,0 +1,14 @@
+{
+  "_doc": "Spanish inflection rules for Lumen's offline dictionary. Read by tools/dictionary/build_dictionary.py (to store only forms these rules can't recover) and by the app's SpanishMorphology (to find a word's headword). Keep both in sync by editing only this file.",
+  "clitics": ["selos", "selas", "melos", "melas", "telos", "telas", "noslos", "noslas", "selo", "sela", "melo", "mela", "telo", "tela", "noslo", "nosla", "les", "los", "las", "nos", "me", "te", "se", "os", "le", "lo", "la"],
+  "verb_endings": {
+    "ar": ["o", "as", "a", "amos", "áis", "an", "ás", "aba", "abas", "ábamos", "abais", "aban", "é", "aste", "ó", "asteis", "aron", "aré", "arás", "ará", "aremos", "aréis", "arán", "aría", "arías", "aríamos", "aríais", "arían", "e", "es", "emos", "éis", "en", "ara", "aras", "áramos", "arais", "aran", "ase", "ases", "ásemos", "aseis", "asen", "are", "ares", "áremos", "areis", "aren", "ad", "á", "ando", "ado", "ada", "ados", "adas", "ar"],
+    "er": ["o", "es", "e", "emos", "éis", "en", "és", "ía", "ías", "íamos", "íais", "ían", "í", "iste", "ió", "imos", "isteis", "ieron", "eré", "erás", "erá", "eremos", "eréis", "erán", "ería", "erías", "eríamos", "eríais", "erían", "a", "as", "amos", "áis", "an", "iera", "ieras", "iéramos", "ierais", "ieran", "iese", "ieses", "iésemos", "ieseis", "iesen", "iere", "ieres", "iéremos", "iereis", "ieren", "ed", "é", "iendo", "ido", "ida", "idos", "idas", "er"],
+    "ir": ["o", "es", "e", "imos", "ís", "en", "ía", "ías", "íamos", "íais", "ían", "í", "iste", "ió", "isteis", "ieron", "iré", "irás", "irá", "iremos", "iréis", "irán", "iría", "irías", "iríamos", "iríais", "irían", "a", "as", "amos", "áis", "an", "iera", "ieras", "iéramos", "ierais", "ieran", "iese", "ieses", "iésemos", "ieseis", "iesen", "iere", "ieres", "iéremos", "iereis", "ieren", "id", "í", "iendo", "ido", "ida", "idos", "idas", "ir"]
+  },
+  "_stem_doc": "Applied once, to the last occurrence in a verb stem: duerm-o -> dorm-ir, busqu-é -> busc-ar, conozc-o -> conoc-er, sig-o -> segu-ir. Every derived infinitive is also tried with -se (hablaba -> hablarse).",
+  "stem_changes": [["ue", "o"], ["ue", "u"], ["ie", "e"], ["ie", "i"], ["i", "e"], ["u", "o"], ["qu", "c"], ["gu", "g"], ["gü", "gu"], ["c", "z"], ["j", "g"], ["zc", "c"], ["g", "gu"], ["y", "i"], ["y", ""], ["ig", ""], ["g", ""]],
+  "nominal": [
+    ["ces", "z"], ["iones", "ión"], ["es", ""], ["s", ""], ["a", "o"], ["as", "o"], ["ísimo", ""], ["ísima", ""], ["ísimos", ""], ["ísimas", ""]
+  ]
+}

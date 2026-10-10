@@ -16,3 +16,6 @@
 *.keystore
 *.apk
 *.aab
+
+# Dictionary source downloads (rebuilt into app assets by tools/dictionary/build_dictionary.py)
+/tools/dictionary/work/

@@ -36,14 +36,18 @@ class ForceLayoutTest {
         assertTrue("farthest node is ${dist.last() / median}x the median distance", dist.last() <= 2.2f * median)
     }
 
+    /** Circles are drawn with ForceLayout.nodeRadius (up to 46 units): they and their names must not overlap. */
     @Test
-    fun layout_doesNotStackNodesOnTopOfEachOther() {
-        val pos = ForceLayout.compute(crowdedGraph()).values.toList()
-        var closest = Float.MAX_VALUE
-        for (i in pos.indices) for (j in i + 1 until pos.size) {
-            closest = minOf(closest, hypot(pos[i].x - pos[j].x, pos[i].y - pos[j].y))
+    fun layout_circlesDoNotOverlap() {
+        val g = crowdedGraph()
+        val pos = ForceLayout.compute(g)
+        val r = g.characters.associate { it.id to ForceLayout.nodeRadius(it.importance) }
+        val ids = pos.keys.toList()
+        for (i in ids.indices) for (j in i + 1 until ids.size) {
+            val (a, b) = ids[i] to ids[j]
+            val d = hypot(pos.getValue(a).x - pos.getValue(b).x, pos.getValue(a).y - pos.getValue(b).y)
+            assertTrue("$a and $b are $d apart, circles need ${r.getValue(a) + r.getValue(b)}", d >= r.getValue(a) + r.getValue(b) + 30f)
         }
-        assertTrue("closest pair is $closest apart", closest >= 30f)
     }
 
     @Test

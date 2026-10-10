@@ -270,6 +270,7 @@ fun ReaderScreen(
         DefineSheet(
             state = d,
             onDismiss = vm::closeDefine,
+            onExplainWithAi = vm::explainWithAi,
             onAskMore = vm::askAboutDefined,
             onCopy = { text ->
                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

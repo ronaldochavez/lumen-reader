@@ -19,6 +19,7 @@ import com.folio.reader.ai.ReadingSnapshotCache
 import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.container
 import com.folio.reader.data.ReaderSettings
+import com.folio.reader.data.dictionary.DictionaryResult
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.BookmarkEntity
 import com.folio.reader.data.db.ChapterEntity
@@ -100,8 +101,15 @@ data class AskState(
     val note: String? = null,
 )
 
+/**
+ * "Define": the offline dictionary answers first (free, instant); the AI explanation of the word in this passage
+ * only runs when the reader asks for it ([aiRequested]), so looking words up doesn't spend AI credits.
+ */
 data class DefineState(
     val selection: SelectionInfo,
+    val lookingUp: Boolean = true,
+    val dictionary: DictionaryResult? = null,
+    val aiRequested: Boolean = false,
     val text: String = "",
     val streaming: Boolean = false,
     val error: String? = null,
@@ -600,10 +608,21 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
     val define = _define.asStateFlow()
     private var defineJob: Job? = null
 
-    /** Meaning of the selected word in its passage (and a translation if the book isn't in Spanish). */
+    /** Looks the selection up in the offline dictionary. The AI is only asked from [explainWithAi]. */
     fun define(info: SelectionInfo) {
         defineJob?.cancel()
-        _define.value = DefineState(selection = info, streaming = true)
+        _define.value = DefineState(selection = info)
+        defineJob = viewModelScope.launch {
+            val result = c.dictionary.lookup(info.text, _ui.value.book?.language)
+            _define.update { it?.copy(lookingUp = false, dictionary = result) }
+        }
+    }
+
+    /** Meaning of the selected word in its passage (and a translation if the book is in another language). */
+    fun explainWithAi() {
+        val info = _define.value?.selection ?: return
+        defineJob?.cancel()
+        _define.update { it?.copy(lookingUp = false, aiRequested = true, text = "", streaming = true, error = null, needsKey = false) }
         defineJob = viewModelScope.launch {
             try {
                 val passage = runCatching {
@@ -635,7 +654,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
 
     fun saveGeminiKeyAndRetryDefine(key: String) = viewModelScope.launch {
         c.settings.setGeminiKey(key)
-        _define.value?.selection?.let(::define)
+        explainWithAi()
     }
 
     /** From the definition card: keep talking about this passage in the full, spoiler-free chat. */

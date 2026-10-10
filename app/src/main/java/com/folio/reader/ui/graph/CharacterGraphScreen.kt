@@ -388,7 +388,7 @@ private fun GraphCanvas(
     val labelColor = MaterialTheme.colorScheme.onBackground
     val edgeLabelBg = MaterialTheme.colorScheme.background
 
-    fun radius(id: String) = 16f + (importance[id] ?: 3) * 6f
+    fun radius(id: String) = ForceLayout.nodeRadius(importance[id] ?: 3)
 
     // Fit the whole graph on screen once we know the canvas size.
     LaunchedEffect(positions, canvasSize) {
@@ -446,6 +446,8 @@ private fun GraphCanvas(
                 }
             }
     ) {
+        // Labels of the selected character's relationships, drawn later in screen space (see the names below).
+        val edgeLabels = mutableListOf<GraphRelation>()
         withTransform({
             translate(pan.x, pan.y)
             scale(scale, scale, pivot = Offset.Zero)
@@ -468,18 +470,7 @@ private fun GraphCanvas(
                     strokeWidth = if (selected != null && focused && typeMatch) 5f else 3f,
                     pathEffect = if (r.kind == RelationType.RIVALRY) PathEffect.dashPathEffect(floatArrayOf(14f, 10f)) else null,
                 )
-                if (selected != null && focused && typeMatch && r.label.isNotBlank()) {
-                    val mid = (a + b) / 2f
-                    val layout = measurer.measure(r.label, TextStyle(fontSize = 11.sp, color = relationColor(r.type), fontWeight = FontWeight.SemiBold))
-                    val tl = Offset(mid.x - layout.size.width / 2f, mid.y - layout.size.height / 2f)
-                    drawRoundRect(
-                        color = edgeLabelBg.copy(alpha = .92f),
-                        topLeft = tl - Offset(6f, 2f),
-                        size = androidx.compose.ui.geometry.Size(layout.size.width + 12f, layout.size.height + 4f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
-                    )
-                    drawText(layout, topLeft = tl)
-                }
+                if (selected != null && focused && typeMatch && r.label.isNotBlank()) edgeLabels += r
             }
             // Nodes
             for (ch in chars) {
@@ -494,19 +485,72 @@ private fun GraphCanvas(
                 val initials = ch.name.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
                 val init = measurer.measure(initials, TextStyle(fontSize = (r / 2.4f).sp, color = Color.White.copy(alpha = alpha), fontWeight = FontWeight.Bold))
                 drawText(init, topLeft = p - Offset(init.size.width / 2f, init.size.height / 2f))
-                val name = measurer.measure(
-                    ch.name,
-                    TextStyle(
-                        fontSize = if ((importance[ch.id] ?: 3) >= 4) 14.sp else 12.sp,
-                        color = labelColor.copy(alpha = alpha),
-                        fontWeight = if ((importance[ch.id] ?: 3) >= 4) FontWeight.SemiBold else FontWeight.Normal,
-                        textAlign = TextAlign.Center,
-                    ),
-                )
-                drawText(name, topLeft = Offset(p.x - name.size.width / 2f, p.y + r + 6f))
             }
         }
+
+        // Names, drawn at a fixed screen size like a map's place names: zooming in spreads the circles apart and
+        // reveals more of them. Placed by priority (the selected character and its links, then importance); a
+        // name that would collide with one already placed is skipped.
+        val placed = mutableListOf<androidx.compose.ui.geometry.Rect>()
+        val order = chars.sortedWith(
+            compareByDescending<GraphCharacter> { it.id == selected }
+                .thenByDescending { it.id in neighbors }
+                .thenByDescending { importance[it.id] ?: 3 },
+        )
+        for (ch in order) {
+            val world = positions[ch.id] ?: continue
+            val dim = selected != null && ch.id !in neighbors && ch.id != selected
+            val major = (importance[ch.id] ?: 3) >= 4
+            val layout = measurer.measure(
+                shortName(ch.name),
+                TextStyle(
+                    fontSize = if (major) 13.sp else 11.sp,
+                    color = labelColor.copy(alpha = if (dim) 0.3f else 1f),
+                    fontWeight = if (major || ch.id == selected) FontWeight.SemiBold else FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                ),
+            )
+            val p = world * scale + pan
+            val top = p.y + radius(ch.id) * scale + 4f
+            val rect = androidx.compose.ui.geometry.Rect(p.x - layout.size.width / 2f, top, p.x + layout.size.width / 2f, top + layout.size.height)
+            if (ch.id != selected && placed.any { it.overlaps(rect) }) continue
+            placed += rect
+            drawRoundRect(
+                color = edgeLabelBg.copy(alpha = 0.7f),
+                topLeft = rect.topLeft - Offset(4f, 1f),
+                size = androidx.compose.ui.geometry.Size(rect.width + 8f, rect.height + 2f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+            )
+            drawText(layout, topLeft = rect.topLeft)
+        }
+
+        // Relationship labels at their edge's midpoint, skipped where they'd cover a name or another label.
+        for (r in edgeLabels) {
+            val a = positions[r.source] ?: continue
+            val b = positions[r.target] ?: continue
+            val mid = (a + b) / 2f * scale + pan
+            val layout = measurer.measure(r.label, TextStyle(fontSize = 11.sp, color = relationColor(r.type), fontWeight = FontWeight.SemiBold))
+            val rect = androidx.compose.ui.geometry.Rect(
+                mid.x - layout.size.width / 2f, mid.y - layout.size.height / 2f,
+                mid.x + layout.size.width / 2f, mid.y + layout.size.height / 2f,
+            )
+            if (placed.any { it.overlaps(rect) }) continue
+            placed += rect
+            drawRoundRect(
+                color = edgeLabelBg.copy(alpha = .92f),
+                topLeft = rect.topLeft - Offset(6f, 2f),
+                size = androidx.compose.ui.geometry.Size(rect.width + 12f, rect.height + 4f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
+            )
+            drawText(layout, topLeft = rect.topLeft)
+        }
     }
+}
+
+/** "Rodion Romanovich Raskolnikov" -> "Rodion Raskolnikov": first and last name; the card shows the full one. */
+private fun shortName(name: String): String {
+    val words = name.split(' ').filter { it.isNotBlank() }
+    return if (words.size >= 3) "${words.first()} ${words.last()}" else name
 }
 
 @Composable

@@ -101,6 +101,11 @@ object Prompts {
         append("Book: ").append(bookTitle)
         if (!language.isNullOrBlank()) append(" (language: ").append(language).append(")")
         append("\nReader's language: ").append(readerLanguage())
+        // Small models add "Translation: <same word>" anyway; say it outright when there's nothing to translate.
+        val bookLang = language?.lowercase()?.take(2)
+        if (bookLang != null && bookLang == Locale.getDefault().language.lowercase()) {
+            append("\nThe book is in the reader's language: leave out the Translation line.")
+        }
         append("\n\nPassage:\n\"").append(passage.trim()).append("\"\n\nSelected term: \"").append(term.trim()).append("\"")
     }
 
