@@ -55,10 +55,12 @@ class GutendexClient(private val base: String = "https://gutendex.com") {
             add("mime_type=" + CatalogHttp.encode("application/epub"))
             if (page > 1) add("page=$page")
         }
-        return parse(CatalogHttp.getText("$base/books/?" + params.joinToString("&")))
+        // Gutendex is a free service and, when busy, takes 30-60 s to answer a search.
+        return parse(CatalogHttp.getText("$base/books/?" + params.joinToString("&"), readTimeoutMs = SEARCH_TIMEOUT_MS))
     }
 
     companion object {
+        private const val SEARCH_TIMEOUT_MS = 90_000
         private val json = Json { ignoreUnknownKeys = true }
 
         internal fun parse(body: String): CatalogPage {
@@ -68,7 +70,7 @@ class GutendexClient(private val base: String = "https://gutendex.com") {
                 CatalogBook(
                     source = CatalogSource.GUTENBERG,
                     id = b.id.toString(),
-                    title = b.title.replace(Regex("\\s+"), " ").trim(),
+                    title = cleanTitle(b.title),
                     author = b.authors.joinToString(" & ") { personName(it.name) }.ifBlank { "Unknown author" },
                     coverUrl = b.formats["image/jpeg"],
                     language = b.languages.firstOrNull(),
@@ -83,6 +85,13 @@ class GutendexClient(private val base: String = "https://gutendex.com") {
             }
             return CatalogPage(books, hasMore = response.next != null)
         }
+
+        /** Some Gutenberg titles keep library-catalog subfield markers: "Jane Eyre : $b a drama" → "Jane Eyre: a drama". */
+        internal fun cleanTitle(raw: String): String = raw
+            .replace(Regex("\\s*\\$[a-z]\\s*"), " ")
+            .replace(Regex("\\s+"), " ")
+            .replace(" :", ":")
+            .trim()
 
         /** Gutenberg lists people as "Last, First[, title]": "Cervantes Saavedra, Miguel de" → "Miguel de Cervantes Saavedra". */
         internal fun personName(raw: String): String {
@@ -200,8 +209,8 @@ internal object CatalogHttp {
 
     fun encode(s: String): String = URLEncoder.encode(s, "UTF-8")
 
-    fun getText(url: String, accept: String? = null): String {
-        val conn = open(url, accept)
+    fun getText(url: String, accept: String? = null, readTimeoutMs: Int = 45_000): String {
+        val conn = open(url, accept, readTimeoutMs)
         try {
             val code = conn.responseCode
             if (code !in 200..299) throw IOException("${URL(url).host} answered HTTP $code")
@@ -277,10 +286,10 @@ internal object CatalogHttp {
         return doc.select("a[href]").map { it.absUrl("href") }.firstOrNull { it.substringBefore('?').endsWith(".epub") }
     }
 
-    private fun open(url: String, accept: String?): HttpURLConnection =
+    private fun open(url: String, accept: String?, readTimeoutMs: Int = 45_000): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 20_000
-            readTimeout = 45_000
+            readTimeout = readTimeoutMs
             instanceFollowRedirects = true
             setRequestProperty("User-Agent", USER_AGENT)
             accept?.let { setRequestProperty("Accept", it) }

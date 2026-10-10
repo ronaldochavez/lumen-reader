@@ -85,6 +85,7 @@ import com.folio.reader.data.catalog.CatalogHttp
 import com.folio.reader.data.catalog.CatalogSource
 import com.folio.reader.ui.theme.Folio
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.absoluteValue
@@ -169,7 +170,7 @@ fun CatalogScreen(
                 item(key = "footer-$source") {
                     Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                         when {
-                            r.loading -> CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                            r.loading -> SlowLoading(source)
                             r.error != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     "Couldn't reach ${source.label}: ${r.error}",
@@ -251,6 +252,27 @@ private fun SectionHeader(source: CatalogSource, browsing: Boolean) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** A spinner; if the catalog takes a while (Gutendex often does when busy), a line saying it's still working. */
+@Composable
+private fun SlowLoading(source: CatalogSource) {
+    var slow by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(8_000)
+        slow = true
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+        if (slow) {
+            Text(
+                "${source.label}'s search can be slow. Still looking…",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
     }
 }
 

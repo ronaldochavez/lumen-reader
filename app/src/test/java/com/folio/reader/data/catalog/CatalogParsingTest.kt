@@ -30,6 +30,13 @@ class CatalogParsingTest {
     }
 
     @Test
+    fun gutenberg_titlesLoseCatalogMarkers() {
+        assertEquals("Jane Eyre: a drama in five acts", GutendexClient.cleanTitle("Jane Eyre : \$b a drama in five acts"))
+        assertEquals("Moby Dick; Or, The Whale", GutendexClient.cleanTitle("Moby Dick;\r\nOr, The Whale"))
+        assertEquals("Price: \$5", GutendexClient.cleanTitle("Price: \$5"))
+    }
+
+    @Test
     fun gutenberg_personNames() {
         assertEquals("Miguel de Cervantes Saavedra", GutendexClient.personName("Cervantes Saavedra, Miguel de"))
         assertEquals("Leo Tolstoy", GutendexClient.personName("Tolstoy, Leo, graf"))
