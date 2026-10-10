@@ -21,6 +21,8 @@ import com.folio.reader.container
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.folio.reader.data.ReaderSettings
+import com.folio.reader.data.TocPosition
+import com.folio.reader.data.TocPositions
 import com.folio.reader.ui.theme.Folio
 import com.folio.reader.ui.theme.accentOn
 import kotlinx.coroutines.flow.combine
@@ -85,9 +87,12 @@ data class ReaderUiState(
     val minutesLeft: Long? = null,
     /** Where the reader was before a jump (search, TOC, note, slider, link), until they go back or read on. */
     val returnPoint: ReturnPoint? = null,
+    /** Where each contents entry starts in the text: which chapter a page is in (a file can hold many). */
+    val sections: List<TocPosition> = emptyList(),
 ) {
     val chapterTitle: String
-        get() = chapters.getOrNull(spineIndex)?.let(SpoilerFreeContextBuilder::label).orEmpty()
+        get() = TocPositions.labelAt(sections, spineIndex, pageStart)
+            ?: chapters.getOrNull(spineIndex)?.let(SpoilerFreeContextBuilder::label).orEmpty()
 
     val isBookmarked: Boolean
         get() = bookmarks.any { it.spineIndex == spineIndex && it.offset >= pageStart && it.offset < max(pageEnd, pageStart + 1) }
@@ -214,6 +219,8 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
                 )
             }
             c.books.markOpened(bookId)
+            val sections = c.books.sections(bookId)
+            _ui.update { it.copy(sections = sections) }
         }
         viewModelScope.launch {
             combine(c.settings.readerSettings, c.settings.accentColor) { s, a -> s to a }.collect { (s, a) ->
@@ -686,7 +693,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
 
     fun openAsk(selection: SelectionInfo?) {
         val s = _ui.value
-        askController.open(selection, SpoilerFreeContextBuilder.positionLabel(s.chapters.getOrNull(s.spineIndex), s.spineIndex, s.progress))
+        askController.open(selection, SpoilerFreeContextBuilder.positionLabel(s.chapterTitle, s.progress))
         _ui.update { it.copy(sheet = ReaderSheet.ASK, chromeVisible = false) }
     }
 

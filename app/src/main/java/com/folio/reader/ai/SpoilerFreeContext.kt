@@ -2,6 +2,8 @@ package com.folio.reader.ai
 
 import com.folio.reader.data.BookRepository
 import com.folio.reader.data.FrontMatter
+import com.folio.reader.data.TocPosition
+import com.folio.reader.data.TocPositions
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.ChapterEntity
 import com.folio.reader.ui.reader.SearchController
@@ -42,6 +44,8 @@ interface BookTextSource {
     suspend fun storyStart(bookId: String): FrontMatter.StoryStart?
     /** Other names the reader's character map knows for [name] (nicknames, full name), up to [progress]. */
     suspend fun aliasesFor(bookId: String, name: String, progress: Float): List<String>
+    /** Where each contents entry starts in the text, sorted ([TocPositions]). */
+    suspend fun sections(bookId: String): List<TocPosition>
 }
 
 /** Latest exact text of the current chapter up to the end of the visible page, captured from the reader WebView. */
@@ -84,15 +88,31 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
         val currentText = storyText(start, spineIndex, rawCurrent)
 
         // A spine item that opens with front matter is named after where its story text begins ("CHAPTER ONE"),
-        // not after its first section ("FROM THE PAGES OF…").
+        // not after its first section ("FROM THE PAGES OF…"), when the contents don't say more.
         fun name(ch: ChapterEntity) = start?.takeIf { it.spineIndex == ch.spineIndex && it.title.isNotBlank() }?.title ?: label(ch)
-        data class Prior(val chapter: ChapterEntity, val text: String, val name: String) {
+
+        // Which chapter a position is in, from where the contents entries start in the text: one file often holds
+        // many chapters. Where labels repeat (every Part has a "CHAPTER SIX"), how far into the book says which one.
+        val sections = books.sections(book.id)
+        val ambiguous = TocPositions.labelsRepeat(sections)
+        val charsBefore = LongArray(chapters.size + 1).also { a -> chapters.forEachIndexed { i, ch -> a[i + 1] = a[i] + ch.charCount } }
+        fun place(spine: Int, offset: Int, fallback: String): String {
+            val label = TocPositions.labelAt(sections, spine, offset) ?: return fallback
+            if (!ambiguous) return label
+            val percent = (charsBefore[spine.coerceIn(0, chapters.size)] + offset) * 100 / book.totalChars.coerceAtLeast(1)
+            return "$label, $percent% into the book"
+        }
+
+        /** [base]: where [text] starts in the spine item's stored text (after any front matter left out). */
+        data class Prior(val chapter: ChapterEntity, val text: String, val base: Int, val name: String) {
             val block = "<chapter n=\"${chapter.spineIndex + 1}\" title=\"$name\">\n$text\n</chapter>"
         }
         val prior = ArrayDeque<Prior>()
         for (ch in chapters.take(spineIndex)) {
-            val text = storyText(start, ch.spineIndex, books.chapterText(book.id, ch.spineIndex))
-            if (text.isNotBlank()) prior += Prior(ch, text, name(ch))
+            val stored = books.chapterText(book.id, ch.spineIndex)
+            val text = storyText(start, ch.spineIndex, stored)
+            val base = stored.length - text.length
+            if (text.isNotBlank()) prior += Prior(ch, text, base, place(ch.spineIndex, base, name(ch)))
         }
 
         // Keep within the model's context window: drop the earliest chapters first, keeping room for excerpts
@@ -126,13 +146,22 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
         if (lastDropped != null && room > MIN_TAIL_CHARS) {
             val cut = lastDropped.text.length - (room - 200)
             val from = lastDropped.text.indexOf('\n', cut).let { if (it >= 0 && it < cut + 2_000) it + 1 else cut }
-            tail = lastDropped.copy(text = "…" + lastDropped.text.substring(from))
+            val tailBase = lastDropped.base + from
+            tail = lastDropped.copy(
+                text = "…" + lastDropped.text.substring(from),
+                base = tailBase,
+                name = place(lastDropped.chapter.spineIndex, tailBase, lastDropped.name),
+            )
             removed[removed.lastIndex] = lastDropped.copy(text = lastDropped.text.substring(0, from))
         }
-        val excerptSources = removed.map { it.name to it.text } +
-            listOfNotNull(currentHead.takeIf { it.isNotBlank() }?.let { "${current?.let { name(it) }.orEmpty()} (earlier pages)" to it })
+        // Each passage is labeled with the chapter it's in, so the AI can say where something first appeared.
+        val currentBase = rawCurrent.length - currentText.length
+        val excerptSources = removed.map { p -> ExcerptSource(p.text) { at -> place(p.chapter.spineIndex, p.base + at, p.name) } } +
+            listOfNotNull(currentHead.takeIf { it.isNotBlank() }?.let { head ->
+                ExcerptSource(head) { at -> place(spineIndex, currentBase + at, "${current?.let { name(it) }.orEmpty()} (earlier pages)") }
+            })
         val excerpts = if (term != null && excerptSources.isNotEmpty()) {
-            excerptsMentioning(term, excerptSources, excerptBudget, aliases)
+            excerptsIn(term, excerptSources, excerptBudget, aliases)
         } else ""
 
         val dropped = removed.size
@@ -153,8 +182,10 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
             else -> "This book is too long for this AI: $leftOut."
         }
 
+        // The chapter the reader is in: where their page ends.
+        val here = TocPositions.labelAt(sections, spineIndex, rawCurrent.length)
         val currentBlock = buildString {
-            append("<chapter n=\"${spineIndex + 1}\" title=\"${current?.let { name(it) }.orEmpty()}\" status=\"in progress\">\n")
+            append("<chapter n=\"${spineIndex + 1}\" title=\"${place(spineIndex, rawCurrent.length, current?.let { name(it) }.orEmpty())}\" status=\"in progress\">\n")
             append(currentText.takeLast(currentBudget))
             append("\n$READER_MARKER The book's text ends at this point for you.]\n</chapter>")
         }
@@ -165,7 +196,7 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
             priorChapters = (listOf(excerpts).filter(String::isNotEmpty) + listOfNotNull(tail?.block) + prior.map { it.block })
                 .joinToString("\n\n"),
             currentChapter = currentBlock,
-            positionLabel = positionLabel(current, spineIndex, progress),
+            positionLabel = here?.let { positionLabel(it, progress) } ?: positionLabel(current, spineIndex, progress),
             spineIndex = spineIndex,
             progress = progress,
             truncationNote = note,
@@ -186,22 +217,36 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
             else -> text.drop(start.offset).trimStart()
         }
 
-        /**
-         * Passages (about [EXCERPT_RADIUS] chars on each side) from [chapters] that mention [term] or one of its
-         * [aliases], ignoring case and accents: the first mention always, then mentions spread evenly through the
-         * rest, within [budget] chars.
-         */
+        /** Text to take passages from; [labelAt] names the chapter a position in it is in. */
+        class ExcerptSource(val text: String, val labelAt: (Int) -> String)
+
+        /** [excerptsIn] for (chapter label, text) pairs. */
         internal fun excerptsMentioning(
             term: String,
             chapters: List<Pair<String, String>>,
             budget: Int,
             aliases: List<String> = emptyList(),
+        ): String = excerptsIn(term, chapters.map { (label, text) -> ExcerptSource(text) { label } }, budget, aliases)
+
+        /**
+         * Passages (about [EXCERPT_RADIUS] chars on each side) from [sources] that mention [term] or one of its
+         * [aliases], ignoring case and accents: the first mention always, then mentions spread evenly through the
+         * rest, within [budget] chars. Each is labeled with the chapter it's in.
+         */
+        internal fun excerptsIn(
+            term: String,
+            sources: List<ExcerptSource>,
+            budget: Int,
+            aliases: List<String> = emptyList(),
         ): String {
             val names = (listOf(term) + aliases).filter { it.isNotBlank() }.distinctBy { SearchController.fold(it).trim() }
             val pattern = Regex(names.joinToString("|") { "(?:${SearchController.patternFor(it).pattern})" })
-            data class Hit(val chapter: String, val text: String, val at: Int)
-            val hits = chapters.flatMap { (label, text) ->
-                pattern.findAll(SearchController.fold(text)).map { Hit(label, text, it.range.first) }.toList()
+            data class Hit(val source: ExcerptSource, val at: Int) {
+                val text get() = source.text
+                val chapter get() = source.labelAt(at)
+            }
+            val hits = sources.flatMap { source ->
+                pattern.findAll(SearchController.fold(source.text)).map { Hit(source, it.range.first) }.toList()
             }
             if (hits.isEmpty()) return ""
             val perExcerpt = 2 * EXCERPT_RADIUS + 80
@@ -251,10 +296,10 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
 
         fun label(ch: ChapterEntity) = ch.title.ifBlank { "Section ${ch.spineIndex + 1}" }
 
-        fun positionLabel(ch: ChapterEntity?, spineIndex: Int, progress: Float): String {
-            val name = ch?.let(::label) ?: "Section ${spineIndex + 1}"
-            return "$name · ${(progress * 100).toInt()}% of the book"
-        }
+        fun positionLabel(ch: ChapterEntity?, spineIndex: Int, progress: Float): String =
+            positionLabel(ch?.let(::label) ?: "Section ${spineIndex + 1}", progress)
+
+        fun positionLabel(chapterTitle: String, progress: Float) = "$chapterTitle · ${(progress * 100).toInt()}% of the book"
 
         /** Cuts [text] at [fraction], then backs up to the previous sentence end so nothing unread leaks. */
         fun cutAtFraction(text: String, fraction: Float): String {

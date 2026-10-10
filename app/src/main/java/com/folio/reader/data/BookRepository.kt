@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.room.withTransaction
 import com.folio.reader.ai.AnswerCache
+import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.ai.BookTextSource
 import com.folio.reader.ai.GraphCharacter
 import com.folio.reader.ai.GraphData
@@ -102,10 +103,47 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         names(character).map { it.trim() }.filter { it.length >= 3 && SearchController.fold(it) != key }.distinct()
     }
 
+    private val tocPositions = ConcurrentHashMap<String, List<TocPosition>>()
+
+    /**
+     * Where each contents entry starts in the text ([TocPositions]), sorted, to tell which chapter a position is in.
+     * Worked out from the book's HTML the first time and saved next to its text.
+     */
+    override suspend fun sections(bookId: String): List<TocPosition> = withContext(Dispatchers.IO) {
+        tocPositions.getOrPut(bookId) {
+            val file = File(bookDir(bookId), TOC_POSITIONS_FILE)
+            runCatching { tocJson.decodeFromString<List<TocPosition>>(file.readText()) }.getOrNull()
+                ?: computeTocPositions(bookId).also { positions ->
+                    runCatching { file.writeText(tocJson.encodeToString(positions)) }
+                }
+        }
+    }
+
+    /** "CHAPTER TWO · 36% of the book": the chapter that [offset] of spine item [spineIndex] is in. */
+    suspend fun positionLabel(bookId: String, spineIndex: Int, offset: Int, progress: Float): String {
+        val title = TocPositions.labelAt(sections(bookId), spineIndex, offset)
+            ?: chapters(bookId).getOrNull(spineIndex)?.let(SpoilerFreeContextBuilder::label)
+            ?: "Section ${spineIndex + 1}"
+        return SpoilerFreeContextBuilder.positionLabel(title, progress)
+    }
+
+    private suspend fun computeTocPositions(bookId: String): List<TocPosition> {
+        val chapters = chapters(bookId)
+        return toc(bookId).groupBy { it.spineIndex }.flatMap { (spine, entries) ->
+            val html = chapters.getOrNull(spine)?.href?.let { File(bookDir(bookId), it) }
+            if (html != null && html.isFile && entries.any { !it.fragment.isNullOrBlank() }) {
+                runCatching { TocPositions.inDocument(Jsoup.parse(html, "UTF-8"), entries) }.getOrDefault(emptyList())
+            } else {
+                entries.filter { it.fragment.isNullOrBlank() }.map { TocPosition(spine, 0, it.title, it.depth) }
+            }
+        }.sortedWith(compareBy({ it.spineIndex }, { it.offset }))
+    }
+
     suspend fun delete(bookId: String) = withContext(Dispatchers.IO) {
         db.books().delete(bookId)
         bookDir(bookId).deleteRecursively()
         storyStarts.remove(bookId)
+        tocPositions.remove(bookId)
         AnswerCache.fileFor(context.filesDir, bookId).delete()
     }
 
@@ -256,6 +294,9 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         const val TEXT_DIR = ".folio/text"
         private val NO_CUT = FrontMatter.StoryStart(-1, -1)
         private val graphJson = Json { ignoreUnknownKeys = true; coerceInputValues = true; isLenient = true }
+        private val tocJson = Json { ignoreUnknownKeys = true }
+        /** Versioned: a change in how positions are worked out makes old files be recomputed. */
+        private const val TOC_POSITIONS_FILE = ".folio/toc-positions-v2.json"
 
         fun normalizeText(raw: String): String = raw
             .replace("\r", "")

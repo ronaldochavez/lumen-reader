@@ -70,7 +70,6 @@ import com.folio.reader.AppContainer
 import com.folio.reader.ai.AiService
 import com.folio.reader.ai.Encyclopedia
 import com.folio.reader.ai.LoreEntry
-import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.container
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.EncyclopediaEntity
@@ -125,10 +124,8 @@ class EncyclopediaViewModel(savedState: SavedStateHandle, private val c: AppCont
             val snap = c.snapshots.get(bookId)
             val spine = snap?.spineIndex ?: book.spineIndex
             val progress = snap?.progress ?: book.progress
-            val chapters = c.books.chapters(bookId)
-            _state.update {
-                it.copy(book = book, currentProgress = progress, currentLabel = SpoilerFreeContextBuilder.positionLabel(chapters.getOrNull(spine), spine, progress))
-            }
+            val label = c.books.positionLabel(bookId, spine, snap?.textUpToPage?.length ?: book.chapterOffset, progress)
+            _state.update { it.copy(book = book, currentProgress = progress, currentLabel = label) }
         }
         viewModelScope.launch {
             c.db.encyclopedias().observe(bookId).collect { saved ->

@@ -1,6 +1,7 @@
 package com.folio.reader.ai
 
 import com.folio.reader.data.FrontMatter
+import com.folio.reader.data.TocPosition
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.ChapterEntity
 import com.folio.reader.ui.reader.AskController
@@ -34,6 +35,7 @@ class TokenSaverTest {
         override suspend fun storyStart(bookId: String): FrontMatter.StoryStart? = null
         override suspend fun aliasesFor(bookId: String, name: String, progress: Float) =
             if (name == "Sonia") listOf("Sofia Semionovna") else emptyList()
+        override suspend fun sections(bookId: String) = emptyList<TocPosition>()
     }
 
     private val book = BookEntity(

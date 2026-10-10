@@ -9,7 +9,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.folio.reader.AppContainer
 import com.folio.reader.ai.AiService
 import com.folio.reader.ai.GraphData
-import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.container
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.CharacterGraphEntity
@@ -50,16 +49,10 @@ class GraphViewModel(savedState: SavedStateHandle, private val c: AppContainer) 
         viewModelScope.launch {
             val book = c.books.get(bookId) ?: return@launch
             val snapshot = c.snapshots.get(bookId)
-            val chapters = c.books.chapters(bookId)
             val spine = snapshot?.spineIndex ?: book.spineIndex
             val progress = snapshot?.progress ?: book.progress
-            _state.update {
-                it.copy(
-                    book = book,
-                    currentProgress = progress,
-                    currentLabel = SpoilerFreeContextBuilder.positionLabel(chapters.getOrNull(spine), spine, progress),
-                )
-            }
+            val label = c.books.positionLabel(bookId, spine, snapshot?.textUpToPage?.length ?: book.chapterOffset, progress)
+            _state.update { it.copy(book = book, currentProgress = progress, currentLabel = label) }
         }
         viewModelScope.launch {
             c.db.graphs().observe(bookId).collect { saved ->
