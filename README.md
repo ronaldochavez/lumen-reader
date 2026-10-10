@@ -12,7 +12,8 @@ a table of contents, Paper / Sepia / Night / Black themes and an accent color of
    `Lumen-*.apk`.
 2. Open it. Android will ask to allow "install unknown apps" for your browser or file manager: allow it just for
    this install.
-3. Import your books with **Import book** (EPUB, PDF, MOBI, comics…).
+3. Import your books with **Import book** (EPUB, PDF, MOBI, comics…), or tap **Free books** to download classics
+   from Project Gutenberg and Standard Ebooks.
 4. For the AI, the app walks you through creating a **free** Google Gemini key (no card needed) the first time you
    ask something. You can also run a free model on your own computer ([Ollama](#free-and-private-a-model-on-your-own-computer-ollama))
    or use your own Anthropic (Claude) key.
@@ -36,9 +37,14 @@ isn't supported yet.
 
 ## More features
 
-- **Define / translate:** in the selection menu, "Define" explains the word as used in that passage (and
-  translates it if the book is in another language than yours). It only sends the surrounding paragraph, never
-  text past the visible page.
+- **Free books:** Library → *Free books* searches [Project Gutenberg](https://www.gutenberg.org) (75,000+
+  books, through [Gutendex](https://gutendex.com)) and [Standard Ebooks](https://standardebooks.org) (carefully
+  formatted classics) and adds a book to your library in one tap. Only public-domain books; filter by English,
+  Spanish or any language.
+- **Dictionary:** in the selection menu, "Define" looks the word up in a built-in English and Spanish dictionary
+  (offline, instant, no AI): *darning* → *darn*, *dijo* → *decir*. "Explain in this passage (AI)" then explains it
+  as used there (and translates it if the book is in another language than yours), sending only the surrounding
+  paragraph, never text past the visible page. Sources and licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - **Book encyclopedia:** places, objects, terms, factions and events, each with its own entry, up to your page.
 - **Search in the book:** case- and accent-insensitive; by default only up to where you are (no spoilers).
 - **Read aloud:** the system voice (offline and free) highlights the current sentence and turns pages by itself.
@@ -61,7 +67,8 @@ And the spoiler-free AI features:
   **Where was I?** button opens the same chat, empty, so you can ask for a recap or anything else.
 - **Character map.** An interactive map (zoom, pan, tap a character) of who's who and how they're connected,
   built up to your page. It's saved; when you read further, it offers to update it. If you went back and the
-  saved map goes further than you, it warns you before showing it.
+  saved map goes further than you, it warns you before showing it. In crowded books, *Find* searches the cast by
+  name, nickname or group and flies the map to that person.
 
 The AI answers in the language of your question; the map and the encyclopedia are written in your device's
 language.
@@ -150,8 +157,11 @@ app/src/main/
                           EPUB importer/parser, settings (DataStore + Keystore), backups
     data/convert/         Format detection and converters (MOBI, FB2, DOCX, RTF, TXT, HTML),
                           PDF (pdfbox-android) and comic (CBZ/CBR) import
+    data/dictionary/      Offline dictionary lookups and English/Spanish inflection rules
+    data/catalog/         Project Gutenberg (Gutendex) and Standard Ebooks search and downloads
     ui/reader/fixed       Page reader for PDFs and comics
     ui/library            Library ("Continue reading", collection filters, import)
+    ui/catalog            Free books: search and one-tap download
     ui/collections        Collections
     ui/reader             Reader: WebView, custom selection menu, contents/notes/typography/AI sheets
     ui/graph              Character map (force layout + Canvas)
@@ -159,6 +169,7 @@ app/src/main/
     ui/stats              Progress, streaks and daily goal
     ui/settings           Appearance, reading, AI keys and model, backups
 tools/reader-harness.html Tests the reading engine in a desktop browser (tools/serve.ps1)
+tools/dictionary/         Builds the dictionaries in assets/dictionary/ from Open English WordNet and Wiktionary
 ```
 
 JVM tests: `./gradlew :app:testDebugUnitTest` (request shapes for Claude and Gemini, the spoiler cut, converters,

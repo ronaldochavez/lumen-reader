@@ -63,35 +63,42 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
      * Reflowable formats become HTML chapters (same pipeline as EPUB); PDFs and comics keep their pages.
      */
     suspend fun import(uri: Uri): String = withContext(Dispatchers.IO) {
-        val id = UUID.randomUUID().toString()
-        val dir = bookDir(id).apply { mkdirs() }
-        val fileName = displayName(uri)
-        val baseTitle = fileName.substringBeforeLast('.').removeSuffix(".fb2").replace('_', ' ').trim().ifBlank { "Untitled" }
-        val tmp = File(context.cacheDir, "import-$id")
+        val tmp = File(context.cacheDir, "import-${UUID.randomUUID()}")
         try {
             val input = context.contentResolver.openInputStream(uri) ?: error("Couldn't open the file")
             input.use { src -> tmp.outputStream().use { src.copyTo(it) } }
+            importFile(tmp, displayName(uri))
+        } finally {
+            tmp.delete()
+        }
+    }
 
-            when (val kind = FormatDetector.detect(tmp, fileName)) {
+    /** Imports a file already on disk (e.g. a downloaded book). [fileName] helps detect the format; [file] is kept. */
+    suspend fun importFile(file: File, fileName: String): String = withContext(Dispatchers.IO) {
+        val id = UUID.randomUUID().toString()
+        val dir = bookDir(id).apply { mkdirs() }
+        val baseTitle = fileName.substringBeforeLast('.').removeSuffix(".fb2").replace('_', ' ').trim().ifBlank { "Untitled" }
+        try {
+            when (val kind = FormatDetector.detect(file, fileName)) {
                 SourceKind.EPUB -> {
-                    unzip(tmp, dir)
+                    unzip(file, dir)
                     indexReflowable(id, dir, EpubParser(dir).parse())
                 }
                 SourceKind.PDF -> {
                     val pdf = File(dir, PdfImport.FILE_NAME)
-                    tmp.copyTo(pdf, overwrite = true)
+                    file.copyTo(pdf, overwrite = true)
                     indexFixedLayout(id, dir, BookFormat.PDF, PdfImport.import(context, pdf, baseTitle))
                 }
                 SourceKind.CBZ, SourceKind.CBR ->
-                    indexFixedLayout(id, dir, BookFormat.COMIC, ComicImport.import(tmp, kind, dir, baseTitle))
+                    indexFixedLayout(id, dir, BookFormat.COMIC, ComicImport.import(file, kind, dir, baseTitle))
                 else -> {
                     val converted: ConvertedBook = when (kind) {
-                        SourceKind.MOBI -> MobiConverter.convert(tmp, baseTitle)
-                        SourceKind.FB2 -> Fb2Converter.convert(tmp, baseTitle)
-                        SourceKind.DOCX -> DocxConverter.convert(tmp, baseTitle)
-                        SourceKind.RTF -> RtfConverter.convert(tmp, baseTitle)
-                        SourceKind.HTML -> HtmlConverter.convert(tmp, baseTitle)
-                        else -> TxtConverter.convert(tmp, baseTitle)
+                        SourceKind.MOBI -> MobiConverter.convert(file, baseTitle)
+                        SourceKind.FB2 -> Fb2Converter.convert(file, baseTitle)
+                        SourceKind.DOCX -> DocxConverter.convert(file, baseTitle)
+                        SourceKind.RTF -> RtfConverter.convert(file, baseTitle)
+                        SourceKind.HTML -> HtmlConverter.convert(file, baseTitle)
+                        else -> TxtConverter.convert(file, baseTitle)
                     }
                     indexReflowable(id, dir, ConvertedBookWriter.write(converted, dir))
                 }
@@ -100,8 +107,6 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         } catch (e: Exception) {
             dir.deleteRecursively()
             throw e
-        } finally {
-            tmp.delete()
         }
     }
 

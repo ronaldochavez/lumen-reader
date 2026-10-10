@@ -24,6 +24,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.folio.reader.FolioApp
+import com.folio.reader.ui.catalog.CatalogScreen
 import com.folio.reader.data.db.BookFormat
 import com.folio.reader.ui.reader.fixed.FixedReaderScreen
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -53,6 +54,7 @@ private object Routes {
     const val READER = "reader/{bookId}"
     const val GRAPH = "graph/{bookId}"
     const val ENCYCLOPEDIA = "encyclopedia/{bookId}"
+    const val CATALOG = "catalog"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -98,7 +100,14 @@ fun FolioNavHost(nav: NavHostController = rememberNavController()) {
             modifier = Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner),
         ) {
             composable(Routes.LIBRARY) {
-                LibraryScreen(onOpenBook = { nav.navigate("reader/$it") }, onOpenStats = { nav.switchTab(Routes.STATS) })
+                LibraryScreen(
+                    onOpenBook = { nav.navigate("reader/$it") },
+                    onOpenStats = { nav.switchTab(Routes.STATS) },
+                    onFindBooks = { nav.navigate(Routes.CATALOG) },
+                )
+            }
+            composable(Routes.CATALOG) {
+                CatalogScreen(onBack = { nav.popBackStack() }, onOpenBook = { nav.navigate("reader/$it") })
             }
             composable(Routes.COLLECTIONS) {
                 CollectionsScreen(onOpenCollection = { nav.navigate("collection/$it") })

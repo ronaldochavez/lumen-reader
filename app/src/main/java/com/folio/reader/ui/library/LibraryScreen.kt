@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CollectionsBookmark
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +42,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -76,6 +78,7 @@ import java.util.Calendar
 fun LibraryScreen(
     onOpenBook: (String) -> Unit,
     onOpenStats: () -> Unit,
+    onFindBooks: () -> Unit,
     vm: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -111,7 +114,7 @@ fun LibraryScreen(
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column {
-                    Header(state.books.size, state.importing)
+                    Header(state.books.size, state.importing, onFindBooks)
                     if (state.books.isNotEmpty()) StreakPill(stats, onOpenStats)
                 }
             }
@@ -127,7 +130,7 @@ fun LibraryScreen(
             }
 
             if (state.loaded && state.books.isEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) { EmptyLibrary(filtered = state.filter != null) }
+                item(span = { GridItemSpan(maxLineSpan) }) { EmptyLibrary(filtered = state.filter != null, onFindBooks) }
             }
 
             items(state.books, key = { it.id }) { book ->
@@ -156,7 +159,7 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun Header(count: Int, importing: Int) {
+private fun Header(count: Int, importing: Int, onFindBooks: () -> Unit) {
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val greeting = when (hour) {
         in 5..11 -> "Good morning"
@@ -164,7 +167,18 @@ private fun Header(count: Int, importing: Int) {
         else -> "Good evening"
     }
     Column(Modifier.statusBarsPadding().padding(top = 16.dp)) {
-        Text(greeting, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                greeting,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.weight(1f),
+            )
+            FilledTonalButton(onClick = onFindBooks) {
+                Icon(Icons.Rounded.TravelExplore, null, Modifier.size(18.dp))
+                Text("  Free books")
+            }
+        }
         Text("Your library", style = MaterialTheme.typography.displaySmall)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
             Text(
@@ -353,7 +367,7 @@ private fun BookTile(book: BookEntity, onOpen: () -> Unit, onAddToCollection: ()
 }
 
 @Composable
-private fun EmptyLibrary(filtered: Boolean) {
+private fun EmptyLibrary(filtered: Boolean, onFindBooks: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -390,6 +404,10 @@ private fun EmptyLibrary(filtered: Boolean) {
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+            FilledTonalButton(onClick = onFindBooks, modifier = Modifier.padding(top = 20.dp)) {
+                Icon(Icons.Rounded.TravelExplore, null, Modifier.size(18.dp))
+                Text("  Find free classics")
             }
         }
     }
