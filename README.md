@@ -177,8 +177,11 @@ Answers are good for "who is this?" and recaps, but a little less precise than t
    similar, the AI's text starts at the story (`FrontMatter.kt`); while you're still reading the introduction
    itself, it gets what you've read of it.
 
-Cost: the chapters you've already read go in a *prompt-cached* block (1 h TTL), so follow-up questions in the same
-chapter reuse the cache and cost a fraction of the first one.
+Tokens: by default (Settings → *Use fewer tokens*) a question about something you selected sends only the passages
+that mention it, by any name the character map knows, plus the last pages: about 15K tokens instead of everything
+read so far (often 100K or more). The open chat sends the last ~40 pages. *Read the whole book* under an answer
+asks again with everything. Asking the same thing at the same place shows the saved answer (no tokens), and with
+Claude the book text of follow-up questions comes from the prompt cache, at a fraction of the price.
 
 ## Project structure
 

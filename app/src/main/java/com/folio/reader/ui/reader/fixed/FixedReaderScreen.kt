@@ -251,6 +251,8 @@ fun FixedReaderScreen(
             onAsk = vm::askQuestion,
             onOpenSettings = { vm.closeSheet(); onOpenSettings() },
             onSaveGeminiKey = vm::saveGeminiKey,
+            onReadWholeBook = vm::askWithWholeBook,
+            onAskAgain = vm::askAgain,
         )
         ReaderSheet.SEARCH -> SearchSheet(search, vm::closeSheet, vm::setSearchQuery, vm::setSearchOnlyUpToHere, vm::openSearchHit)
         else -> Unit

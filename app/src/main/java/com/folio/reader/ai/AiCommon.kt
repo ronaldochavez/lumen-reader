@@ -126,8 +126,10 @@ object Prompts {
         - If the text doesn't answer the question, say so plainly instead of guessing.
         - Every detail you state must be in the text. Don't fill gaps with plausible-sounding details; a shorter
           answer is better than an invented one.
-        - Sometimes early chapters are left out to save space and an <excerpts> block stands in for them: treat
-          those passages as part of the book, and don't assume anything about what was left out.
+        - Often only the most recent pages are included, to save space, plus an <excerpts> block with earlier
+          passages about what the reader asked: treat those passages as part of the book, and don't assume
+          anything about what was left out. If they don't answer the question, say the passages you were given
+          don't cover it.
 
         How to answer:
         - Lead with a one-sentence answer (who/what it is).

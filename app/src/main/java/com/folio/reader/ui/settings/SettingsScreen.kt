@@ -137,6 +137,8 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     val localThink = c.settings.localAiThink.state(false)
     fun setLocalDeep(on: Boolean) = viewModelScope.launch { c.settings.setLocalAiDeep(on) }
     fun setLocalThink(on: Boolean) = viewModelScope.launch { c.settings.setLocalAiThink(on) }
+    val aiSaver = c.settings.aiSaver.state(true)
+    fun setAiSaver(on: Boolean) = viewModelScope.launch { c.settings.setAiSaver(on) }
 
     fun saveLocalAi(url: String, model: String) = viewModelScope.launch {
         c.settings.setLocalAi(OllamaService.normalizeUrl(url), model)
@@ -222,6 +224,7 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
     val localStatus by vm.localStatus.collectAsStateWithLifecycle()
     val localChecking by vm.localChecking.collectAsStateWithLifecycle()
     val localDeep by vm.localDeep.collectAsStateWithLifecycle()
+    val aiSaver by vm.aiSaver.collectAsStateWithLifecycle()
     val localThink by vm.localThink.collectAsStateWithLifecycle()
     val volumeKeys by vm.volumeKeys.collectAsStateWithLifecycle()
     val dataBusy by vm.dataBusy.collectAsStateWithLifecycle()
@@ -381,6 +384,14 @@ fun SettingsScreen(vm: SettingsViewModel = viewModel(factory = SettingsViewModel
                 }
             }
             testResult?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 10.dp)) }
+            SwitchRow(
+                title = "Use fewer tokens",
+                subtitle = "Questions about something you selected send the passages that mention it plus the " +
+                    "last pages, not the whole book: about 5–15× fewer tokens. Under an answer, \"Read the " +
+                    "whole book\" asks again with everything.",
+                checked = aiSaver,
+                onChange = vm::setAiSaver,
+            )
         }
 
         // ---- Local AI ----
