@@ -109,14 +109,6 @@ data class AskState(
     val provider: AiProvider? = null,
     val positionLabel: String = "",
     val note: String? = null,
-    /** The AI got recent pages plus passages about the selection, not the whole book (Settings → Use fewer tokens). */
-    val saver: Boolean = false,
-    /** About how many tokens the whole book up to here takes: the cost of "Read the whole book". */
-    val wholeBookTokens: Int = 0,
-    /** Roughly what the last question cost, in tokens; 0 for a saved answer. */
-    val tokens: Int? = null,
-    /** The last answer is a saved one: the same question at the same place in the book. */
-    val fromCache: Boolean = false,
 )
 
 /**
@@ -151,9 +143,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
 
     val volumeKeys = c.settings.volumeKeysTurnPages
 
-    private val askController = AskController(viewModelScope, c) { selection, saver ->
-        buildAskContext(selection?.end, selection?.text, saver)
-    }
+    private val askController = AskController(viewModelScope, c) { selection -> buildAskContext(selection?.end, selection?.text) }
     val ask = askController.state
 
     private val _js = Channel<JsCall>(Channel.UNLIMITED)
@@ -704,19 +694,13 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
 
     fun saveGeminiKey(key: String) = askController.saveGeminiKey(key)
 
-    fun askWithWholeBook() = askController.readWholeBook()
-
-    fun askAgain() = askController.askAgain()
-
     /** Text from the start of the book to the end of the visible page (or the selection, if it runs past it). */
-    private suspend fun buildAskContext(selectionEnd: Int?, selectionText: String?, saver: Boolean): BookContext {
+    private suspend fun buildAskContext(selectionEnd: Int?, selectionText: String?): BookContext {
         val s = _ui.value
         val book = s.book ?: error("Book not loaded")
         val cutoff = max(s.pageEnd, selectionEnd ?: 0)
         val partial = runCatching { Json.decodeFromString<String>(evalJs("Folio.textUpTo($cutoff)")) }.getOrNull()
-        return c.contextBuilder.build(
-            book, s.chapters, s.spineIndex, s.progress, partial, c.ai.maxContextChars(), focus = selectionText, saver = saver,
-        )
+        return c.contextBuilder.build(book, s.chapters, s.spineIndex, s.progress, partial, c.ai.maxContextChars(), focus = selectionText)
     }
 
     /** Captures the exact reading position for the character-graph screen. */

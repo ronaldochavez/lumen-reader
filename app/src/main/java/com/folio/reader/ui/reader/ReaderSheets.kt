@@ -576,39 +576,6 @@ private val chatSuggestions = listOf(
     "What's still unresolved?",
 )
 
-/** Under the last answer: roughly what it cost, and a way to a fuller answer (reading the whole book) or a fresh one. */
-@Composable
-private fun AnswerFooter(state: AskState, onReadWholeBook: () -> Unit, onAskAgain: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            val cost = when {
-                state.fromCache -> "Saved answer · no tokens used"
-                state.tokens != null -> "≈ ${tokenLabel(state.tokens)} tokens"
-                else -> null
-            }
-            cost?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (state.fromCache) {
-                TextButton(onClick = onAskAgain) { Text("Ask again") }
-            }
-        }
-        if (state.saver) {
-            OutlinedButton(onClick = onReadWholeBook, shape = CircleShape) {
-                Icon(Icons.AutoMirrored.Rounded.MenuBook, null, Modifier.size(18.dp))
-                Text("  Read the whole book · ≈ ${tokenLabel(state.wholeBookTokens)} tokens")
-            }
-        }
-    }
-}
-
-/** "850", "4.2K", "95K". */
-internal fun tokenLabel(tokens: Int): String = when {
-    tokens >= 10_000 -> "${(tokens + 500) / 1000}K"
-    tokens >= 1_000 -> String.format(java.util.Locale.US, "%.1fK", tokens / 1000f)
-    else -> tokens.toString()
-}
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AskSheet(
@@ -617,8 +584,6 @@ fun AskSheet(
     onAsk: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onSaveGeminiKey: (String) -> Unit,
-    onReadWholeBook: () -> Unit,
-    onAskAgain: () -> Unit,
 ) {
     var input by remember { mutableStateOf("") }
     val inputFocus = remember { FocusRequester() }
@@ -738,9 +703,6 @@ fun AskSheet(
                     }
                 }
                 state.note?.let { item { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
-                if (!state.streaming && state.messages.lastOrNull()?.let { !it.fromUser && it.text.isNotBlank() } == true) {
-                    item { AnswerFooter(state, onReadWholeBook, onAskAgain) }
-                }
                 when {
                     // First run: no provider yet → offer the free tier right here.
                     state.needsKey && state.provider == null -> item { FreeAiSetupCard(onSaveGeminiKey, onOpenSettings) }

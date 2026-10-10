@@ -59,19 +59,6 @@ class ClaudeRequestTest {
         assertFalse(json.has("thinking"))
     }
 
-    /** A token-saving context: lower effort (fewer thinking tokens) and a 5-minute cache instead of the costlier hour. */
-    @Test
-    fun askRequest_savingTokens_lowEffortAndShortCache() {
-        val json = body(ClaudeService.askParams(AiModel.OPUS, context.copy(saver = true), "Melquíades", emptyList(), "Who is he?"))
-        assertEquals("low", json["output_config"]["effort"].asText())
-        val first = json["messages"][0]["content"]
-        assertEquals("5m", first[0]["cache_control"]["ttl"].asText())
-        assertEquals("5m", first[1]["cache_control"]["ttl"].asText())
-        // The system prompt is the same for every question: it keeps the 1-hour cache (and comes first, as required).
-        assertEquals("1h", json["system"][0]["cache_control"]["ttl"].asText())
-        assertEquals("1h", body(ClaudeService.askParams(AiModel.OPUS, context, null, emptyList(), "Q"))["messages"][0]["content"][0]["cache_control"]["ttl"].asText())
-    }
-
     @Test
     fun askRequest_onHaiku_omitsEffortAndFallbacks() {
         val json = body(ClaudeService.askParams(AiModel.HAIKU, context, null, emptyList(), "Summary"))

@@ -26,24 +26,12 @@ data class BookContext(
     val progress: Float,
     /** Set when early chapters had to be dropped to fit the model's context window. */
     val truncationNote: String? = null,
-    val bookId: String = "",
-    /**
-     * Built to use fewer tokens and actually trimmed: recent pages plus passages about what was asked, instead of
-     * everything up to the reader's position that fits the model (which [fullChars] measures).
-     */
-    val saver: Boolean = false,
-    val fullChars: Int = 0,
-) {
-    /** Characters of book text in this context, sent with the question. */
-    val sentChars get() = priorChapters.length + currentChapter.length
-}
+)
 
 /** What the context builder reads from the library; [BookRepository] in the app, a fake in tests. */
 interface BookTextSource {
     suspend fun chapterText(bookId: String, spineIndex: Int): String
     suspend fun storyStart(bookId: String): FrontMatter.StoryStart?
-    /** Other names the reader's character map knows for [name] (nicknames, full name), up to [progress]. */
-    suspend fun aliasesFor(bookId: String, name: String, progress: Float): List<String>
     /** Where each contents entry starts in the text, sorted ([TocPositions]). */
     suspend fun sections(bookId: String): List<TocPosition>
 }
@@ -64,9 +52,6 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
      * back to the stored chapter text cut at the saved reading fraction, trimmed back to a sentence boundary.
      * @param focus what the reader asked about (the selected text). When early chapters don't fit [maxChars] (small
      * local models), passages from them that mention it are kept, starting with its first appearance.
-     * @param saver use fewer tokens: send at most [SAVER_FOCUS_CHARS] (about a selection: recent pages plus the
-     * passages that mention it, by any name the character map knows) or [SAVER_CHAT_CHARS] (open chat: recent
-     * pages) instead of everything up to the reader's position.
      */
     suspend fun build(
         book: BookEntity,
@@ -76,7 +61,6 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
         currentPartial: String?,
         maxChars: Int,
         focus: String? = null,
-        saver: Boolean = false,
     ): BookContext {
         val current = chapters.getOrNull(spineIndex)
         val rawCurrent = currentPartial?.let(BookRepository::normalizeText)
@@ -118,42 +102,17 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
         // Keep within the model's context window: drop the earliest chapters first, keeping room for excerpts
         // about the focus term from the chapters that get dropped.
         val term = focus?.trim()?.take(80)?.takeIf { it.length >= 2 }
-        val aliases = term?.let { books.aliasesFor(book.id, it, progress) }.orEmpty()
-        val saverBudget = if (term != null) SAVER_FOCUS_CHARS else SAVER_CHAT_CHARS
-        // Only when the model could read much more: a small local model's window is already about this size.
-        val saving = saver && maxChars >= 2 * saverBudget
-        val budget = if (saving) saverBudget else maxChars
-        // When saving tokens, the passages about the selection matter more than a longer stretch of recent pages.
-        val excerptBudget = if (term == null) 0 else if (saving) budget * 45 / 100 else budget / 4
+        val excerptBudget = if (term != null) maxChars / 4 else 0
         val removed = mutableListOf<Prior>()
         var total = prior.sumOf { it.block.length } + currentText.length
-        val fullChars = prior.sumOf { it.text.length } + currentText.length
-        // Room for excerpts is only kept when something has to be left out; a book that fits is sent whole.
-        val reserve = if (total > budget) excerptBudget else 0
-        while (total > budget - reserve && prior.isNotEmpty()) {
+        while (total > maxChars - excerptBudget && prior.isNotEmpty()) {
             val first = prior.removeFirst()
             total -= first.block.length
             removed += first
         }
         // The current chapter alone may not fit either (some books are a few huge "parts"): its beginning is cut too.
-        val currentBudget = budget - reserve
+        val currentBudget = maxChars - excerptBudget
         val currentHead = currentText.dropLast(currentBudget)
-        // Chapters are dropped whole, which can leave much of the budget unused (and, early in a chapter, almost no
-        // recent text): fill it with the end of the last chapter dropped, the pages right before.
-        var tail: Prior? = null
-        val room = budget - reserve - total
-        val lastDropped = removed.lastOrNull()
-        if (lastDropped != null && room > MIN_TAIL_CHARS) {
-            val cut = lastDropped.text.length - (room - 200)
-            val from = lastDropped.text.indexOf('\n', cut).let { if (it >= 0 && it < cut + 2_000) it + 1 else cut }
-            val tailBase = lastDropped.base + from
-            tail = lastDropped.copy(
-                text = "…" + lastDropped.text.substring(from),
-                base = tailBase,
-                name = place(lastDropped.chapter.spineIndex, tailBase, lastDropped.name),
-            )
-            removed[removed.lastIndex] = lastDropped.copy(text = lastDropped.text.substring(0, from))
-        }
         // Each passage is labeled with the chapter it's in, so the AI can say where something first appeared.
         val currentBase = rawCurrent.length - currentText.length
         val excerptSources = removed.map { p -> ExcerptSource(p.text) { at -> place(p.chapter.spineIndex, p.base + at, p.name) } } +
@@ -161,23 +120,17 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
                 ExcerptSource(head) { at -> place(spineIndex, currentBase + at, "${current?.let { name(it) }.orEmpty()} (earlier pages)") }
             })
         val excerpts = if (term != null && excerptSources.isNotEmpty()) {
-            excerptsIn(term, excerptSources, excerptBudget, aliases)
+            excerptsIn(term, excerptSources, excerptBudget)
         } else ""
 
         val dropped = removed.size
-        val trimmed = dropped > 0 || currentHead.isNotEmpty()
-        // Trimmed only because of the saver budget, not because the model's window is too small.
-        val savedTokens = saving && trimmed
         val leftOut = when {
             dropped == 0 -> "the start of this chapter was left out"
             dropped == 1 -> "the first chapter was left out"
             else -> "the first $dropped chapters were left out"
         }
         val note = when {
-            !trimmed -> null
-            savedTokens && excerpts.isNotEmpty() ->
-                "To use fewer tokens, the AI read the recent pages and the passages that mention \"$term\"."
-            savedTokens -> "To use fewer tokens, the AI read only the recent pages."
+            dropped == 0 && currentHead.isEmpty() -> null
             excerpts.isNotEmpty() -> "This book is too long for this AI: $leftOut, except passages that mention \"$term\"."
             else -> "This book is too long for this AI: $leftOut."
         }
@@ -193,16 +146,12 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
         return BookContext(
             bookTitle = book.title,
             author = book.author,
-            priorChapters = (listOf(excerpts).filter(String::isNotEmpty) + listOfNotNull(tail?.block) + prior.map { it.block })
-                .joinToString("\n\n"),
+            priorChapters = listOf(excerpts).filter(String::isNotEmpty).plus(prior.map { it.block }).joinToString("\n\n"),
             currentChapter = currentBlock,
             positionLabel = here?.let { positionLabel(it, progress) } ?: positionLabel(current, spineIndex, progress),
             spineIndex = spineIndex,
             progress = progress,
             truncationNote = note,
-            bookId = book.id,
-            saver = savedTokens,
-            fullChars = minOf(fullChars, maxChars),
         )
     }
 
@@ -221,26 +170,16 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
         class ExcerptSource(val text: String, val labelAt: (Int) -> String)
 
         /** [excerptsIn] for (chapter label, text) pairs. */
-        internal fun excerptsMentioning(
-            term: String,
-            chapters: List<Pair<String, String>>,
-            budget: Int,
-            aliases: List<String> = emptyList(),
-        ): String = excerptsIn(term, chapters.map { (label, text) -> ExcerptSource(text) { label } }, budget, aliases)
+        internal fun excerptsMentioning(term: String, chapters: List<Pair<String, String>>, budget: Int): String =
+            excerptsIn(term, chapters.map { (label, text) -> ExcerptSource(text) { label } }, budget)
 
         /**
-         * Passages (about [EXCERPT_RADIUS] chars on each side) from [sources] that mention [term] or one of its
-         * [aliases], ignoring case and accents: the first mention always, then mentions spread evenly through the
-         * rest, within [budget] chars. Each is labeled with the chapter it's in.
+         * Passages (about [EXCERPT_RADIUS] chars on each side) from [sources] that mention [term], ignoring case and
+         * accents: the first mention always, then mentions spread evenly through the rest, within [budget] chars.
+         * Each is labeled with the chapter it's in.
          */
-        internal fun excerptsIn(
-            term: String,
-            sources: List<ExcerptSource>,
-            budget: Int,
-            aliases: List<String> = emptyList(),
-        ): String {
-            val names = (listOf(term) + aliases).filter { it.isNotBlank() }.distinctBy { SearchController.fold(it).trim() }
-            val pattern = Regex(names.joinToString("|") { "(?:${SearchController.patternFor(it).pattern})" })
+        internal fun excerptsIn(term: String, sources: List<ExcerptSource>, budget: Int): String {
+            val pattern = SearchController.patternFor(term)
             data class Hit(val source: ExcerptSource, val at: Int) {
                 val text get() = source.text
                 val chapter get() = source.labelAt(at)
@@ -255,9 +194,7 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
             val picked = (0 until count).map { i -> if (count == 1) 0 else i * (hits.size - 1) / (count - 1) }.distinct()
             return buildString {
                 append("<excerpts note=\"Earlier chapters were left out to save space; these passages from them mention '")
-                append(term.replace("\"", "'")).append("'")
-                if (names.size > 1) append(" (also called: ").append(names.drop(1).joinToString(", ").replace("\"", "'")).append(")")
-                append(".\">\n")
+                append(term.replace("\"", "'")).append("'.\">\n")
                 var lastEnd = -1
                 var lastText: String? = null
                 for (i in picked) {
@@ -278,18 +215,6 @@ class SpoilerFreeContextBuilder(private val books: BookTextSource) {
         }
 
         private const val EXCERPT_RADIUS = 450
-
-        /** Below this, unused budget isn't worth a partial chapter. */
-        private const val MIN_TAIL_CHARS = 2_000
-
-        /** Saving tokens, about a selection: ~15K tokens, of which 45% are passages about it. */
-        const val SAVER_FOCUS_CHARS = 60_000
-
-        /** Saving tokens, open chat ("Where was I?"): the last ~40 pages, ~20K tokens. */
-        const val SAVER_CHAT_CHARS = 80_000
-
-        /** Rough token count for [chars] characters of text (about 4 per token in English and Spanish prose). */
-        fun tokensFor(chars: Int) = (chars + 3) / 4
 
         /** Opening of the cut-off marker; the prompts refer to it as "[THE READER IS HERE ...]". */
         const val READER_MARKER = "[THE READER IS HERE."

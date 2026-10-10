@@ -2,12 +2,10 @@ package com.folio.reader.ui.reader
 
 import com.folio.reader.AppContainer
 import com.folio.reader.ai.AiEvent
-import com.folio.reader.ai.AnswerCache
 import com.folio.reader.ai.BookContext
 import com.folio.reader.ai.ChatTurn
 import com.folio.reader.ai.AiService
 import com.folio.reader.ai.FreeQuotaExceededException
-import com.folio.reader.ai.Prompts
 import com.folio.reader.ai.SpoilerFreeContextBuilder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -20,26 +18,22 @@ import kotlinx.coroutines.launch
 
 /**
  * The "Ask Lumen" conversation, shared by the text reader and the page (PDF) reader.
- * [buildContext] returns the book text up to the reader's position (with `saver`, only recent pages plus passages
- * about the selection); it's called once per conversation so follow-up questions reuse the same prompt-cached prefix.
+ * [buildContext] returns the book text up to the reader's position; it's called once per conversation
+ * (with the selection, if any) so follow-up questions reuse the same prompt-cached prefix.
  */
 class AskController(
     private val scope: CoroutineScope,
     private val c: AppContainer,
-    private val buildContext: suspend (selection: SelectionInfo?, saver: Boolean) -> BookContext,
+    private val buildContext: suspend (selection: SelectionInfo?) -> BookContext,
 ) {
     private val _state = MutableStateFlow(AskState())
     val state = _state.asStateFlow()
 
     private var job: Job? = null
     private var context: BookContext? = null
-    /** The reader asked to read the whole book in this conversation ("Read the whole book"). */
-    private var wholeBook = false
-    private val answers = AnswerCache(c.appContext.filesDir)
 
     fun open(selection: SelectionInfo?, positionLabel: String) {
         cancel()
-        wholeBook = false
         _state.value = AskState(selection = selection, positionLabel = positionLabel)
         scope.launch { refreshProvider() }
     }
@@ -70,29 +64,7 @@ class AskController(
         context = null
     }
 
-    /** Asks the last question again with everything up to the reader's position, for this and later questions. */
-    fun readWholeBook() {
-        if (_state.value.streaming) return
-        wholeBook = true
-        context = null
-        askLastAgain()
-    }
-
-    /** Asks the last question again instead of showing the saved answer. */
-    fun askAgain() {
-        if (_state.value.streaming) return
-        askLastAgain()
-    }
-
-    private fun askLastAgain() {
-        val msgs = _state.value.messages
-        val lastQuestion = msgs.indexOfLast { it.fromUser }.takeIf { it >= 0 } ?: return
-        _state.update { it.copy(messages = msgs.take(lastQuestion)) }
-        ask(msgs[lastQuestion].text, fresh = true)
-    }
-
-    /** @param fresh skip the saved answers (the reader asked for a new one). */
-    fun ask(question: String, fresh: Boolean = false) {
+    fun ask(question: String) {
         val start = _state.value
         if (start.streaming || question.isBlank()) return
         val history = start.messages.filter { it.text.isNotBlank() }
@@ -102,48 +74,23 @@ class AskController(
                 streaming = true,
                 error = null,
                 quotaExceeded = false,
-                fromCache = false,
-                tokens = null,
             )
         }
         job = scope.launch {
             try {
-                val saver = !wholeBook && c.settings.aiSaver.first()
-                val ctx = context ?: buildContext(start.selection, saver).also { context = it }
-                _state.update {
-                    it.copy(
-                        positionLabel = ctx.positionLabel,
-                        note = ctx.truncationNote,
-                        saver = ctx.saver,
-                        wholeBookTokens = SpoilerFreeContextBuilder.tokensFor(ctx.fullChars),
-                    )
-                }
+                val ctx = context ?: buildContext(start.selection).also { context = it }
+                _state.update { it.copy(positionLabel = ctx.positionLabel, note = ctx.truncationNote) }
                 val readText = ctx.currentChapter.substringAfter('>').substringBefore(SpoilerFreeContextBuilder.READER_MARKER)
                 if (ctx.priorChapters.isBlank() && readText.isBlank()) {
                     throw IllegalStateException("This book has no readable text up to here (a scanned PDF?), so the AI can't read it.")
                 }
-                // Only the opening question of a conversation can be reused: later ones depend on what came before.
-                val cacheKey = AnswerCache.key(start.selection?.text, question, ctx.progress).takeIf { history.isEmpty() && ctx.bookId.isNotEmpty() }
-                if (cacheKey != null && !fresh) {
-                    val saved = answers.get(ctx.bookId, cacheKey)
-                    if (saved != null) {
-                        append(saved)
-                        // Nothing was sent, so there's no trimmed text to describe or to widen.
-                        _state.update { it.copy(fromCache = true, tokens = 0, note = null, saver = false) }
-                        return@launch
-                    }
-                }
-                var complete = true
                 c.ai.ask(ctx, start.selection?.text, history, question.trim()).collect { ev ->
                     when (ev) {
                         is AiEvent.Delta -> append(ev.text)
-                        AiEvent.Refused -> { complete = false; append("\n\n(The AI couldn't answer this question.)") }
-                        AiEvent.Truncated -> { complete = false; append("…") }
+                        AiEvent.Refused -> append("\n\n(The AI couldn't answer this question.)")
+                        AiEvent.Truncated -> append("…")
                     }
                 }
-                val answer = _state.value.messages.lastOrNull()?.takeIf { !it.fromUser }?.text.orEmpty()
-                _state.update { it.copy(tokens = estimateTokens(ctx, start.selection?.text, history, question, answer)) }
-                if (cacheKey != null && complete && answer.isNotBlank()) answers.put(ctx.bookId, cacheKey, answer)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -166,18 +113,5 @@ class AskController(
         val last = msgs.lastOrNull()
         if (last != null && !last.fromUser) msgs[msgs.lastIndex] = last.copy(text = last.text + delta)
         st.copy(messages = msgs)
-    }
-
-    companion object {
-        /**
-         * Tokens one question costs, roughly: the instructions, the book text, the conversation so far and the
-         * answer. Shown so the reader can see what reading less of the book saves. (With Claude, the book part of
-         * follow-up questions is read from the prompt cache, which is billed at a fraction of this.)
-         */
-        internal fun estimateTokens(ctx: BookContext, selection: String?, history: List<ChatTurn>, question: String, answer: String): Int {
-            val chars = Prompts.ASK_SYSTEM.length + ctx.sentChars + Prompts.firstQuestion(selection, question).length +
-                history.sumOf { it.text.length } + answer.length
-            return SpoilerFreeContextBuilder.tokensFor(chars)
-        }
     }
 }

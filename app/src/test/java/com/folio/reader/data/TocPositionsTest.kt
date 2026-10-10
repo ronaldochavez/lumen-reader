@@ -71,7 +71,6 @@ class TocPositionsTest {
         val source = object : BookTextSource {
             override suspend fun chapterText(bookId: String, spineIndex: Int) = if (spineIndex == 0) part1 else part2
             override suspend fun storyStart(bookId: String): FrontMatter.StoryStart? = null
-            override suspend fun aliasesFor(bookId: String, name: String, progress: Float) = emptyList<String>()
             override suspend fun sections(bookId: String) = listOf(
                 TocPosition(0, 0, "CHAPTER ONE"), TocPosition(0, c2, "CHAPTER TWO"), TocPosition(0, c3, "CHAPTER THREE"),
                 TocPosition(1, 0, "CHAPTER ONE"),
@@ -81,7 +80,8 @@ class TocPositionsTest {
         val book = BookEntity(id = "b", title = "Crime", author = "F. D.", language = "en", coverPath = null, addedAt = 0,
             totalChars = (part1.length + part2.length).toLong())
         val ctx = runBlocking {
-            SpoilerFreeContextBuilder(source).build(book, chapters, 1, 0.8f, part2.take(40_000), 2_800_000, focus = "Katerina Ivanovna", saver = true)
+            // A small window (like a local model's), so the first Part is left out and only passages from it are sent.
+            SpoilerFreeContextBuilder(source).build(book, chapters, 1, 0.8f, part2.take(40_000), 60_000, focus = "Katerina Ivanovna")
         }
         // How far into the book the passage itself is.
         val percent = part1.indexOf("Katerina Ivanovna") * 100L / book.totalChars

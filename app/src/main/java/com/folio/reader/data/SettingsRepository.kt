@@ -76,7 +76,6 @@ class SettingsRepository(private val context: Context) {
         val localAiModel = stringPreferencesKey("local_ai_model")
         val localAiThink = booleanPreferencesKey("local_ai_think")
         val localAiDeep = booleanPreferencesKey("local_ai_deep")
-        val aiSaver = booleanPreferencesKey("ai_saver")
     }
 
     /**
@@ -86,14 +85,6 @@ class SettingsRepository(private val context: Context) {
     val localAiDeep: Flow<Boolean> = context.dataStore.data.map { it[Keys.localAiDeep] ?: false }
 
     suspend fun setLocalAiDeep(on: Boolean) = context.dataStore.edit { it[Keys.localAiDeep] = on }
-
-    /**
-     * Use fewer tokens: about a selection, send the passages that mention it plus the recent pages instead of the
-     * whole book read so far; in the open chat, the recent pages. On by default.
-     */
-    val aiSaver: Flow<Boolean> = context.dataStore.data.map { it[Keys.aiSaver] ?: true }
-
-    suspend fun setAiSaver(on: Boolean) = context.dataStore.edit { it[Keys.aiSaver] = on }
 
     /** Let the local model reason before answering: slower but more careful. */
     val localAiThink: Flow<Boolean> = context.dataStore.data.map { it[Keys.localAiThink] ?: false }

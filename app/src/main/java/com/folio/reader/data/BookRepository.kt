@@ -4,11 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.room.withTransaction
-import com.folio.reader.ai.AnswerCache
-import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.ai.BookTextSource
-import com.folio.reader.ai.GraphCharacter
-import com.folio.reader.ai.GraphData
+import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.data.convert.ComicImport
 import com.folio.reader.data.convert.ConvertedBook
 import com.folio.reader.data.convert.ConvertedBookWriter
@@ -29,9 +26,7 @@ import com.folio.reader.data.db.ChapterEntity
 import com.folio.reader.data.db.TocEntity
 import com.folio.reader.data.epub.EpubParser
 import com.folio.reader.data.epub.ParsedEpub
-import com.folio.reader.ui.reader.SearchController
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
@@ -82,27 +77,6 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         }.takeUnless { it == NO_CUT }
     }
 
-    /**
-     * Other names the saved character map has for [name] ("Rodya" and "Rodion Romanovich" for Raskolnikov), so the
-     * AI gets the passages that call someone by any of them. Only from a map made at or before [progress]: one made
-     * further ahead could know a name the reader hasn't met yet.
-     */
-    override suspend fun aliasesFor(bookId: String, name: String, progress: Float): List<String> = withContext(Dispatchers.IO) {
-        val saved = db.graphs().observe(bookId).first() ?: return@withContext emptyList()
-        if (saved.progress > progress + 0.001f) return@withContext emptyList()
-        val graph = runCatching { graphJson.decodeFromString(GraphData.serializer(), saved.json) }.getOrNull()
-            ?: return@withContext emptyList()
-        val key = SearchController.fold(name).trim()
-        fun names(c: GraphCharacter) = listOf(c.name) + c.aliases
-        // The exact name or alias first; otherwise a word of it ("Darcy" for "Fitzwilliam Darcy").
-        val character = graph.characters.firstOrNull { c -> names(c).any { SearchController.fold(it).trim() == key } }
-            ?: graph.characters.firstOrNull { c ->
-                key.length >= 4 && names(c).any { n -> SearchController.fold(n).split(' ').contains(key) }
-            }
-            ?: return@withContext emptyList()
-        names(character).map { it.trim() }.filter { it.length >= 3 && SearchController.fold(it) != key }.distinct()
-    }
-
     private val tocPositions = ConcurrentHashMap<String, List<TocPosition>>()
 
     /**
@@ -144,7 +118,6 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         bookDir(bookId).deleteRecursively()
         storyStarts.remove(bookId)
         tocPositions.remove(bookId)
-        AnswerCache.fileFor(context.filesDir, bookId).delete()
     }
 
     /**
@@ -293,7 +266,6 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
     companion object {
         const val TEXT_DIR = ".folio/text"
         private val NO_CUT = FrontMatter.StoryStart(-1, -1)
-        private val graphJson = Json { ignoreUnknownKeys = true; coerceInputValues = true; isLenient = true }
         private val tocJson = Json { ignoreUnknownKeys = true }
         /** Versioned: a change in how positions are worked out makes old files be recomputed. */
         private const val TOC_POSITIONS_FILE = ".folio/toc-positions-v2.json"

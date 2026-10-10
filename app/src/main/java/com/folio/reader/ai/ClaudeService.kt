@@ -113,10 +113,7 @@ class ClaudeService(private val settings: SettingsRepository) : AiBackend {
             history: List<ChatTurn>,
             question: String,
         ): MessageCreateParams {
-            // A trimmed (token-saving) context is mostly "who is this?" over a few passages: low effort answers it well
-            // with fewer thinking tokens, which are billed as output.
-            val effort = if (context.saver) OutputConfig.Effort.LOW else OutputConfig.Effort.MEDIUM
-            val builder = baseParams(model, maxTokens = 8_000, effort = effort)
+            val builder = baseParams(model, maxTokens = 8_000, effort = OutputConfig.Effort.MEDIUM)
                 .systemOfTextBlockParams(listOf(cached(Prompts.ASK_SYSTEM)))
             val turns = history + ChatTurn(fromUser = true, text = question)
             turns.forEachIndexed { i, turn ->
@@ -164,31 +161,22 @@ class ClaudeService(private val settings: SettingsRepository) : AiBackend {
             return b
         }
 
-        /**
-         * Book text blocks. Stable parts carry cache breakpoints so follow-up questions reuse them. A token-saving
-         * context is cached for 5 minutes instead of an hour: writing the 1-hour cache costs more, and a small context
-         * built around one selection is only re-read by the follow-ups asked right after.
-         */
+        /** Book text blocks. Stable parts carry cache breakpoints so follow-up questions reuse them. */
         private fun bookBlocks(context: BookContext): List<ContentBlockParam> {
             val header = Prompts.bookHeader(context)
-            val longTtl = !context.saver
             val blocks = mutableListOf<ContentBlockParam>()
             if (context.priorChapters.isNotBlank()) {
-                blocks += ContentBlockParam.ofText(cached(header + context.priorChapters, longTtl))
-                blocks += ContentBlockParam.ofText(cached(context.currentChapter + "\n</book>", longTtl))
+                blocks += ContentBlockParam.ofText(cached(header + context.priorChapters))
+                blocks += ContentBlockParam.ofText(cached(context.currentChapter + "\n</book>"))
             } else {
-                blocks += ContentBlockParam.ofText(cached(header + context.currentChapter + "\n</book>", longTtl))
+                blocks += ContentBlockParam.ofText(cached(header + context.currentChapter + "\n</book>"))
             }
             return blocks
         }
 
-        private fun cached(text: String, longTtl: Boolean = true): TextBlockParam = TextBlockParam.builder()
+        private fun cached(text: String): TextBlockParam = TextBlockParam.builder()
             .text(text)
-            .cacheControl(
-                CacheControlEphemeral.builder()
-                    .ttl(if (longTtl) CacheControlEphemeral.Ttl.TTL_1H else CacheControlEphemeral.Ttl.TTL_5M)
-                    .build()
-            )
+            .cacheControl(CacheControlEphemeral.builder().ttl(CacheControlEphemeral.Ttl.TTL_1H).build())
             .build()
 
         private fun text(t: String) = ContentBlockParam.ofText(TextBlockParam.builder().text(t).build())

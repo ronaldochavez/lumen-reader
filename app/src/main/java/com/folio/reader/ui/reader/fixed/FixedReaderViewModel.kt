@@ -52,7 +52,7 @@ class FixedReaderViewModel(savedState: SavedStateHandle, private val c: AppConta
 
     val volumeKeys = c.settings.volumeKeysTurnPages
 
-    private val askController = AskController(viewModelScope, c) { _, saver -> buildContext(saver) }
+    private val askController = AskController(viewModelScope, c) { buildContext() }
     val ask = askController.state
 
     init {
@@ -299,16 +299,12 @@ class FixedReaderViewModel(savedState: SavedStateHandle, private val c: AppConta
 
     fun saveGeminiKey(key: String) = askController.saveGeminiKey(key)
 
-    fun askWithWholeBook() = askController.readWholeBook()
-
-    fun askAgain() = askController.askAgain()
-
     /** Pages before the current one, plus the whole current page (it's all on screen). */
-    private suspend fun buildContext(saver: Boolean = false): BookContext {
+    private suspend fun buildContext(): BookContext {
         val s = _ui.value
         val book = s.book ?: error("Book not loaded")
         val current = c.books.chapterText(bookId, s.spineIndex)
-        return c.contextBuilder.build(book, s.chapters, s.spineIndex, s.progress, current, c.ai.maxContextChars(), saver = saver)
+        return c.contextBuilder.build(book, s.chapters, s.spineIndex, s.progress, current, c.ai.maxContextChars())
     }
 
     suspend fun snapshotForGraph() {
