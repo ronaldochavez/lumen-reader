@@ -299,7 +299,7 @@ private fun StatusBanner(state: GraphUiState, onRegenerate: () -> Unit) {
         modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
     ) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = Folio.Mint)
+            Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
             Text(
                 if (state.outdated) "  Map up to ${state.generatedAt}. You've read further since."
                 else "  No spoilers · up to ${state.generatedAt}",
@@ -380,6 +380,7 @@ private fun GraphCanvas(
     modifier: Modifier,
 ) {
     val measurer = rememberTextMeasurer()
+    val selectionRing = MaterialTheme.colorScheme.primary.copy(alpha = .35f)
     var scale by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
@@ -479,7 +480,7 @@ private fun GraphCanvas(
                 val dim = selected != null && ch.id !in neighbors && ch.id != selected
                 val alpha = if (dim) 0.25f else 1f
                 val color = groupColor(ch.group)
-                if (ch.id == selected) drawCircle(Folio.Coral.copy(alpha = .35f), r + 10f, p)
+                if (ch.id == selected) drawCircle(selectionRing, r + 10f, p)
                 drawCircle(color.copy(alpha = alpha), r, p)
                 drawCircle(Color.White.copy(alpha = .9f * alpha), r, p, style = Stroke(width = 3f))
                 val initials = ch.name.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
@@ -665,7 +666,7 @@ private fun CharacterList(graph: GraphData, onShowOnMap: (String) -> Unit, modif
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(12.dp).clip(CircleShape).background(groupColor(ch.group)))
                         Text("  ${ch.name}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        Text("★".repeat(ch.importance.coerceIn(1, 5)), color = Folio.Mustard, style = MaterialTheme.typography.labelSmall)
+                        Text("★".repeat(ch.importance.coerceIn(1, 5)), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                         IconButton(onClick = { onShowOnMap(ch.id) }) { Icon(Icons.Rounded.MyLocation, "Show on the map") }
                     }
                     Text(ch.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 12.dp))

@@ -8,7 +8,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -153,17 +155,31 @@ private fun ensureContrast(c: Color, against: Color, target: Color, min: Float):
 }
 
 /**
- * Derives the primary-role colors from the user's accent so any pick stays legible: text on buttons keeps
- * ≥ 4.5:1 contrast and containers are tints of the accent over the theme's own background.
+ * Derives every accent role (primary, secondary and tertiary) from the user's accent, so the app has one accent
+ * color and not the accent plus fixed coral and mustard. Any pick stays legible: text on buttons keeps ≥ 4.5:1
+ * contrast and containers are tints of the accent over the theme's own background.
  */
 fun schemeFor(style: ThemeStyle, accent: Color): ColorScheme = when (style) {
     ThemeStyle.LIGHT -> {
         val primary = ensureContrast(accent, Color.White, Color.Black, 4.5f)
+        val container = lerp(accent, Color.White, 0.86f)
+        val onContainer = ensureContrast(lerp(accent, Color.Black, 0.62f), container, Color.Black, 4.5f)
+        // Tonal buttons, chips and the navigation indicator: a slightly stronger tint than primaryContainer.
+        val tonal = lerp(accent, Color.White, 0.78f)
+        val onTonal = ensureContrast(lerp(accent, Color.Black, 0.62f), tonal, Color.Black, 4.5f)
         LightBase.copy(
             primary = primary,
             onPrimary = Color.White,
-            primaryContainer = lerp(accent, Color.White, 0.86f),
-            onPrimaryContainer = lerp(accent, Color.Black, 0.62f),
+            primaryContainer = container,
+            onPrimaryContainer = onContainer,
+            secondary = primary,
+            onSecondary = Color.White,
+            secondaryContainer = tonal,
+            onSecondaryContainer = onTonal,
+            tertiary = primary,
+            onTertiary = Color.White,
+            tertiaryContainer = container,
+            onTertiaryContainer = onContainer,
             inversePrimary = lerp(accent, Color.White, 0.45f),
             surfaceTint = primary,
         )
@@ -171,16 +187,42 @@ fun schemeFor(style: ThemeStyle, accent: Color): ColorScheme = when (style) {
     ThemeStyle.DARK, ThemeStyle.BLACK -> {
         val base = if (style == ThemeStyle.DARK) DarkBase else BlackBase
         val primary = ensureContrast(lerp(accent, Color.White, 0.42f), base.background, Color.White, 7f)
+        val onPrimary = ensureContrast(lerp(accent, Color.Black, 0.78f), primary, Color.Black, 4.5f)
+        val container = lerp(accent, base.background, 0.58f)
+        val onContainer = ensureContrast(lerp(accent, Color.White, 0.82f), container, Color.White, 4.5f)
+        val tonal = lerp(accent, base.background, 0.5f)
+        val onTonal = ensureContrast(lerp(accent, Color.White, 0.85f), tonal, Color.White, 4.5f)
         base.copy(
             primary = primary,
-            onPrimary = ensureContrast(lerp(accent, Color.Black, 0.78f), primary, Color.Black, 4.5f),
-            primaryContainer = lerp(accent, base.background, 0.58f),
-            onPrimaryContainer = lerp(accent, Color.White, 0.82f),
+            onPrimary = onPrimary,
+            primaryContainer = container,
+            onPrimaryContainer = onContainer,
+            secondary = primary,
+            onSecondary = onPrimary,
+            secondaryContainer = tonal,
+            onSecondaryContainer = onTonal,
+            tertiary = primary,
+            onTertiary = onPrimary,
+            tertiaryContainer = container,
+            onTertiaryContainer = onContainer,
             inversePrimary = accent,
             surfaceTint = primary,
         )
     }
 }
+
+/**
+ * The accent as drawn on a reading page, whose background follows the reading theme rather than the app theme:
+ * lightened on dark pages, and with at least 4.5:1 contrast against [background] so links stay readable.
+ */
+fun accentOn(background: Color, accent: Color): Color {
+    val dark = background.luminance() < 0.5f
+    val base = if (dark) lerp(accent, Color.White, 0.35f) else accent
+    return ensureContrast(base, background, if (dark) Color.White else Color.Black, 4.5f)
+}
+
+/** Black or white, whichever reads better on [color]. */
+fun contentOn(color: Color): Color = if (contrast(Color.White, color) >= contrast(Color.Black, color)) Color.White else Color.Black
 
 val SerifDisplay = FontFamily.Serif
 
@@ -205,13 +247,21 @@ private val FolioShapes = Shapes(
     extraLarge = RoundedCornerShape(32.dp),
 )
 
+/**
+ * The accent the reader picked in Settings, as chosen. Screens that draw on a reading page (whose colors follow the
+ * reading theme, not the app theme) adapt it with [accentOn] instead of using MaterialTheme's primary.
+ */
+val LocalAccent = staticCompositionLocalOf { Folio.Plum }
+
 @Composable
 fun FolioTheme(style: ThemeStyle, accent: Color = Folio.Plum, content: @Composable () -> Unit) {
     val scheme = remember(style, accent) { schemeFor(style, accent) }
-    MaterialTheme(
-        colorScheme = scheme,
-        typography = FolioTypography,
-        shapes = FolioShapes,
-        content = content,
-    )
+    CompositionLocalProvider(LocalAccent provides accent) {
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = FolioTypography,
+            shapes = FolioShapes,
+            content = content,
+        )
+    }
 }

@@ -265,7 +265,7 @@ private fun EntryList(s: EncyclopediaUiState, data: Encyclopedia, onRegenerate: 
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = Folio.Mint)
+                    Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                     Text(
                         if (s.outdated) "  Up to ${s.generatedAt}. You've read further since." else "  No spoilers · up to ${s.generatedAt}",
                         style = MaterialTheme.typography.labelMedium,

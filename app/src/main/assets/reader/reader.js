@@ -291,6 +291,7 @@
     st.setProperty('--folio-bg', s.bg);
     st.setProperty('--folio-fg', s.fg);
     st.setProperty('--folio-link', s.link);
+    if (s.accent) st.setProperty('--folio-accent', s.accent);
     st.setProperty('--folio-font', s.serif
       ? 'Georgia, "Noto Serif", "Droid Serif", serif'
       : '"Roboto", "Noto Sans", system-ui, sans-serif');

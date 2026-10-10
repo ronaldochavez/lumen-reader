@@ -316,7 +316,7 @@ fun SearchSheet(
                     .padding(horizontal = 20.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Shield, null, Modifier.size(18.dp), tint = if (state.onlyUpToHere) Folio.Mint else MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Rounded.Shield, null, Modifier.size(18.dp), tint = if (state.onlyUpToHere) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                     Text("Only up to where I am", style = MaterialTheme.typography.titleSmall)
                     Text(
@@ -337,6 +337,7 @@ fun SearchSheet(
                 else -> if (state.results.size == 1) "1 result" else "${state.results.size} results"
             }
             Text(status, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp))
+            val hitColor = MaterialTheme.colorScheme.primary.copy(alpha = .28f)
             LazyColumn(Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)) {
                 items(state.results.size) { i ->
                     val hit = state.results[i]
@@ -353,7 +354,7 @@ fun SearchSheet(
                         Text(
                             buildAnnotatedString {
                                 append("…"); append(hit.before)
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, background = Folio.Mustard.copy(alpha = .35f))) { append(hit.match) }
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, background = hitColor)) { append(hit.match) }
                                 append(hit.after); append("…")
                             },
                             style = MaterialTheme.typography.bodyMedium,
@@ -614,7 +615,7 @@ fun AskSheet(
                 Column(Modifier.padding(start = 12.dp).weight(1f)) {
                     Text("Ask Lumen", style = MaterialTheme.typography.titleLarge)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Shield, null, Modifier.size(13.dp), tint = Folio.Mint)
+                        Icon(Icons.Rounded.Shield, null, Modifier.size(13.dp), tint = MaterialTheme.colorScheme.primary)
                         Text(
                             " No spoilers · only up to ${state.positionLabel}" +
                                 (state.provider?.let { " · ${it.label}" } ?: ""),

@@ -4,6 +4,7 @@
   --folio-bg: #FFFCF7;
   --folio-fg: #2A1F2D;
   --folio-link: #5B3E96;
+  --folio-accent: 91, 62, 150; /* r, g, b of the accent picked in Settings (set from JS) */
   --folio-font: Georgia, "Noto Serif", "Droid Serif", serif;
   --folio-size: 19px;
   --folio-lh: 1.6;
@@ -86,9 +87,9 @@ figure, table, pre { break-inside: avoid; }
 ::highlight(folio-coral)  { background-color: rgba(242, 118, 90, .35); }
 ::highlight(folio-mint)   { background-color: rgba(109, 190, 159, .40); }
 ::highlight(folio-violet) { background-color: rgba(154, 123, 224, .38); }
-::highlight(folio-flash)  { background-color: rgba(242, 118, 90, .55); }
-::highlight(folio-tts)    { background-color: rgba(123, 92, 214, .22); text-decoration: underline 2px rgba(123, 92, 214, .7); }
-html[data-folio-theme="NIGHT"] ::highlight(folio-tts), html[data-folio-theme="BLACK"] ::highlight(folio-tts) { background-color: rgba(185, 162, 240, .22); color: #fff; }
+::highlight(folio-flash)  { background-color: rgba(var(--folio-accent), .45); }
+::highlight(folio-tts)    { background-color: rgba(var(--folio-accent), .22); text-decoration: underline 2px rgba(var(--folio-accent), .7); }
+html[data-folio-theme="NIGHT"] ::highlight(folio-tts), html[data-folio-theme="BLACK"] ::highlight(folio-tts) { background-color: rgba(var(--folio-accent), .28); color: #fff; }
 
 html[data-folio-theme="NIGHT"] ::highlight(folio-yellow), html[data-folio-theme="BLACK"] ::highlight(folio-yellow) { background-color: rgba(247, 201, 72, .30); color: #fff; }
 html[data-folio-theme="NIGHT"] ::highlight(folio-coral), html[data-folio-theme="BLACK"] ::highlight(folio-coral)  { background-color: rgba(242, 118, 90, .30); color: #fff; }

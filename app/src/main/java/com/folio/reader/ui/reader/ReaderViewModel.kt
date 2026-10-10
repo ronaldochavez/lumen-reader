@@ -18,7 +18,12 @@ import com.folio.reader.ai.ClaudeService
 import com.folio.reader.ai.ReadingSnapshotCache
 import com.folio.reader.ai.SpoilerFreeContextBuilder
 import com.folio.reader.container
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import com.folio.reader.data.ReaderSettings
+import com.folio.reader.ui.theme.Folio
+import com.folio.reader.ui.theme.accentOn
+import kotlinx.coroutines.flow.combine
 import com.folio.reader.data.dictionary.DictionaryResult
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.BookmarkEntity
@@ -143,6 +148,8 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
     val events = _events.receiveAsFlow()
 
     private var chapterReady = false
+    /** The accent picked in Settings: links and the read-aloud and jump highlights on the page use it. */
+    private var accent: Color = Folio.Plum
     private var pendingTarget: NavTarget = NavTarget.Offset(0)
     private var prefixChars = LongArray(0)
     private var lastSnippet = ""
@@ -199,9 +206,10 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
             c.books.markOpened(bookId)
         }
         viewModelScope.launch {
-            c.settings.readerSettings.collect { s ->
+            combine(c.settings.readerSettings, c.settings.accentColor) { s, a -> s to a }.collect { (s, a) ->
+                accent = a?.let { Color(it) } ?: Folio.Plum
                 _ui.update { it.copy(settings = s) }
-                if (chapterReady) runJs("Folio.applySettings(${settingsJson(s)})")
+                if (chapterReady) runJs("Folio.applySettings(${settingsJson(s, accent)})")
             }
         }
         viewModelScope.launch {
@@ -699,7 +707,7 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
     // ---------- JSON for the JS side ----------
 
     private fun initJson(): String = buildJsonObject {
-        put("settings", Json.parseToJsonElement(settingsJson(_ui.value.settings)))
+        put("settings", Json.parseToJsonElement(settingsJson(_ui.value.settings, accent)))
         put("highlights", Json.parseToJsonElement(highlightsJson()))
         put("target", targetJson(pendingTarget))
     }.toString()
@@ -741,10 +749,13 @@ class ReaderViewModel(savedState: SavedStateHandle, private val c: AppContainer)
 
         fun cssColor(argb: Long) = String.format("#%06X", argb and 0xFFFFFF)
 
-        fun settingsJson(s: ReaderSettings): String = buildJsonObject {
+        fun settingsJson(s: ReaderSettings, accent: Color = Folio.Plum): String = buildJsonObject {
+            val onPage = accentOn(Color(s.theme.background), accent)
             put("bg", cssColor(s.theme.background))
             put("fg", cssColor(s.theme.foreground))
-            put("link", cssColor(s.theme.link))
+            put("link", cssColor(onPage.toArgb().toLong()))
+            // "r, g, b" for rgba(var(--folio-accent), alpha) in reader.css.
+            put("accent", listOf(onPage.red, onPage.green, onPage.blue).joinToString(", ") { (it * 255).toInt().toString() })
             put("serif", s.serif)
             put("fontSize", s.fontSize)
             put("lineHeight", s.lineHeight)

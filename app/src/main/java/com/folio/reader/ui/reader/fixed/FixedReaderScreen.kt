@@ -42,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import com.folio.reader.ui.theme.LocalAccent
+import com.folio.reader.ui.theme.accentOn
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,7 +91,8 @@ fun FixedReaderScreen(
     val theme = ui.settings.theme
     val paper = Color(theme.background)
     val ink = Color(theme.foreground)
-    val accent = Color(theme.link)
+    // The accent picked in Settings, adjusted to stay readable on this reading theme's page.
+    val accent = accentOn(paper, LocalAccent.current)
     val hasText = format == BookFormat.PDF
     val app = LocalContext.current.applicationContext as FolioApp
 
@@ -151,7 +154,7 @@ fun FixedReaderScreen(
         AnimatedVisibility(!ui.chromeVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
             Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 10.dp)) {
                 Text(
-                    "${ui.spineIndex + 1} de ${ui.chapters.size}",
+                    "${ui.spineIndex + 1} of ${ui.chapters.size}",
                     style = MaterialTheme.typography.labelMedium,
                     color = ink.copy(alpha = .5f),
                     modifier = Modifier.weight(1f),
@@ -190,7 +193,7 @@ fun FixedReaderScreen(
         ) {
             BottomChrome(
                 progress = ui.progress,
-                label = "${ui.chapterTitle} · ${ui.spineIndex + 1} de ${ui.chapters.size}" + timeLeftLabel(ui.minutesLeft),
+                label = "${ui.chapterTitle} · ${ui.spineIndex + 1} of ${ui.chapters.size}" + timeLeftLabel(ui.minutesLeft),
                 paper = paper,
                 ink = ink,
                 accent = accent,

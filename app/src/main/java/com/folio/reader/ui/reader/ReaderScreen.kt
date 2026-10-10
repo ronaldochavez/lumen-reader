@@ -74,6 +74,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.folio.reader.ui.theme.LocalAccent
+import com.folio.reader.ui.theme.accentOn
+import com.folio.reader.ui.theme.contentOn
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -111,7 +114,8 @@ fun ReaderScreen(
     val theme = ui.settings.theme
     val paper = Color(theme.background)
     val ink = Color(theme.foreground)
-    val accent = Color(theme.link)
+    // The accent picked in Settings, adjusted to stay readable on this reading theme's page.
+    val accent = accentOn(paper, LocalAccent.current)
 
     ImmersiveMode(showBars = ui.chromeVisible || ui.sheet != ReaderSheet.NONE, lightBars = !theme.isDark)
     TrackVisibility(vm::setVisible)
@@ -384,7 +388,7 @@ internal fun TopChrome(
                     Icon(
                         if (bookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         "Bookmark",
-                        tint = if (bookmarked) MaterialTheme.colorScheme.secondary else ink,
+                        tint = if (bookmarked) accentOn(paper, LocalAccent.current) else ink,
                     )
                 }
                 if (!wide) {
@@ -470,7 +474,7 @@ internal fun BottomChrome(
                     Button(
                         onClick = onRecap,
                         shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary, contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = contentOn(accent)),
                     ) {
                         Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
