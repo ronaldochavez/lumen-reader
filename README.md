@@ -1,10 +1,40 @@
 # Lumen — an Android e-reader with a spoiler-free AI reading companion
 
+<p align="center"><img src="docs/images/hero.png" alt="Lumen: the library, Ask Lumen and the character map"></p>
+
+<p align="center">
+  <a href="https://github.com/ronaldochavez/lumen-reader/releases/latest"><img src="https://img.shields.io/github/v/release/ronaldochavez/lumen-reader?label=download&color=5B3E96" alt="Download the latest release"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 8.0+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+</p>
+
 On page 180 and a character shows up that you can't place? Select the name and ask Lumen who it is: the AI only
 reads the book **from the beginning up to your page**, so it never gives anything away.
 
 A reader with a warm, cozy look: a library with covers, collections, highlights in 4 colors with notes, bookmarks,
 a table of contents, Paper / Sepia / Night / Black themes and an accent color of your choice.
+
+## Screenshots
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/images/library.png" width="260" alt="Your library"><br><b>Your library</b><br><sub>Covers, collections and “continue reading”</sub></td>
+<td align="center" width="33%"><img src="docs/images/ask.png" width="260" alt="Ask Lumen"><br><b>Ask Lumen</b><br><sub>Who is this? It only reads up to your page</sub></td>
+<td align="center" width="33%"><img src="docs/images/map.png" width="260" alt="Character map"><br><b>Character map</b><br><sub>Who’s who and how they’re connected</sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="docs/images/reader.png" width="260" alt="Made for reading"><br><b>Made for reading</b><br><sub>Paper, Sepia, Night and Black themes</sub></td>
+<td align="center" width="33%"><img src="docs/images/define.png" width="260" alt="Offline dictionary"><br><b>Offline dictionary</b><br><sub>English and Spanish, no AI needed</sub></td>
+<td align="center" width="33%"><img src="docs/images/free.png" width="260" alt="Free books"><br><b>Free books</b><br><sub>Project Gutenberg and Standard Ebooks</sub></td>
+</tr>
+<tr>
+<td align="center" width="33%"><img src="docs/images/select.png" width="260" alt="Select any text"><br><b>Select any text</b><br><sub>Ask, define, highlight or add a note</sub></td>
+<td align="center" width="33%"><img src="docs/images/find.png" width="260" alt="Find anyone"><br><b>Find anyone</b><br><sub>Search the cast in crowded books</sub></td>
+<td align="center" width="33%"><img src="docs/images/night.png" width="260" alt="Night reading"><br><b>Night reading</b><br><sub>Accent color of your choice</sub></td>
+</tr>
+</table>
+
+<sub>On a Galaxy Tab A9, with public-domain books downloaded from Project Gutenberg inside the app. The answers and the map come from Qwen running on a home computer with Ollama.</sub>
 
 ## Download and install
 
