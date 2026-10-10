@@ -187,13 +187,7 @@ class OllamaService(private val settings: SettingsRepository) : AiBackend {
         private val json = Json { ignoreUnknownKeys = true }
 
         /** Accepts "192.168.1.65", "192.168.1.65:11434" or a full URL; returns "http://host:port" without a slash. */
-        fun normalizeUrl(raw: String): String {
-            var url = raw.trim().trimEnd('/')
-            if (!url.startsWith("http://") && !url.startsWith("https://")) url = "http://$url"
-            val hostPart = url.substringAfter("://").substringBefore('/')
-            if (!hostPart.contains(':')) url = url.replaceFirst(hostPart, "$hostPart:$DEFAULT_PORT")
-            return url
-        }
+        fun normalizeUrl(raw: String): String = normalizeServerUrl(raw, DEFAULT_PORT)
 
         private fun bookBody(context: BookContext) =
             context.priorChapters.let { if (it.isBlank()) "" else it + "\n\n" } + context.currentChapter + "\n</book>"
