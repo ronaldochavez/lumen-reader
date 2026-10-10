@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipFile
 
 class BookRepository(private val context: Context, private val db: AppDatabase) {
@@ -53,9 +54,30 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
         if (f.exists()) f.readText() else ""
     }
 
+    private val storyStarts = ConcurrentHashMap<String, FrontMatter.StoryStart>()
+
+    /**
+     * Where the story begins when the book opens with an introduction or similar that may give the plot away
+     * ([FrontMatter]); null when the AI can read the book from its first page.
+     */
+    suspend fun storyStart(bookId: String): FrontMatter.StoryStart? = withContext(Dispatchers.IO) {
+        storyStarts.getOrPut(bookId) {
+            val chapters = chapters(bookId)
+            val entry = FrontMatter.storyStartEntry(toc(bookId), chapters.size)
+            val href = entry?.let { chapters.getOrNull(it.spineIndex)?.href }
+            if (entry == null || href == null) NO_CUT
+            else FrontMatter.StoryStart(
+                entry.spineIndex,
+                FrontMatter.offsetOf(File(bookDir(bookId), href), entry.fragment) ?: 0,
+                entry.title,
+            )
+        }.takeUnless { it == NO_CUT }
+    }
+
     suspend fun delete(bookId: String) = withContext(Dispatchers.IO) {
         db.books().delete(bookId)
         bookDir(bookId).deleteRecursively()
+        storyStarts.remove(bookId)
     }
 
     /**
@@ -203,6 +225,7 @@ class BookRepository(private val context: Context, private val db: AppDatabase) 
 
     companion object {
         const val TEXT_DIR = ".folio/text"
+        private val NO_CUT = FrontMatter.StoryStart(-1, -1)
 
         fun normalizeText(raw: String): String = raw
             .replace("\r", "")

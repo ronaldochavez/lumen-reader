@@ -142,6 +142,10 @@ Answers are good for "who is this?" and recaps, but a little less precise than t
 3. When you ask, it sends the previous chapters in full + the current chapter **cut at the last character of your
    page** (or the end of your selection if it runs past the page), with a `[THE READER IS HERE…]` marker.
 4. The system prompt forbids using outside knowledge of the book and speculating about what comes next.
+5. Introductions, prefaces, "From the pages of…" teasers and chronologies in classic editions often tell the whole
+   plot, and they always come before your page. When the contents list shows one before "Part One", "Chapter 1" or
+   similar, the AI's text starts at the story (`FrontMatter.kt`); while you're still reading the introduction
+   itself, it gets what you've read of it.
 
 Cost: the chapters you've already read go in a *prompt-cached* block (1 h TTL), so follow-up questions in the same
 chapter reuse the cache and cost a fraction of the first one.

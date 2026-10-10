@@ -1,6 +1,7 @@
 package com.folio.reader.ai
 
 import com.folio.reader.data.BookRepository
+import com.folio.reader.data.FrontMatter
 import com.folio.reader.data.db.BookEntity
 import com.folio.reader.data.db.ChapterEntity
 import com.folio.reader.ui.reader.SearchController
@@ -52,16 +53,24 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
         focus: String? = null,
     ): BookContext {
         val current = chapters.getOrNull(spineIndex)
-        val currentText = currentPartial?.let(BookRepository::normalizeText)
+        val rawCurrent = currentPartial?.let(BookRepository::normalizeText)
             ?: cutAtFraction(books.chapterText(book.id, spineIndex), book.chapterFraction)
+        // An introduction or similar before the story is left out once the reader is past it (it may tell the plot).
+        val start = books.storyStart(book.id)?.takeIf { s ->
+            spineIndex > s.spineIndex || (spineIndex == s.spineIndex && rawCurrent.length > s.offset)
+        }
+        val currentText = storyText(start, spineIndex, rawCurrent)
 
-        data class Prior(val chapter: ChapterEntity, val text: String) {
-            val block = "<chapter n=\"${chapter.spineIndex + 1}\" title=\"${label(chapter)}\">\n$text\n</chapter>"
+        // A spine item that opens with front matter is named after where its story text begins ("CHAPTER ONE"),
+        // not after its first section ("FROM THE PAGES OF…").
+        fun name(ch: ChapterEntity) = start?.takeIf { it.spineIndex == ch.spineIndex && it.title.isNotBlank() }?.title ?: label(ch)
+        data class Prior(val chapter: ChapterEntity, val text: String, val name: String) {
+            val block = "<chapter n=\"${chapter.spineIndex + 1}\" title=\"$name\">\n$text\n</chapter>"
         }
         val prior = ArrayDeque<Prior>()
         for (ch in chapters.take(spineIndex)) {
-            val text = books.chapterText(book.id, ch.spineIndex)
-            if (text.isNotBlank()) prior += Prior(ch, text)
+            val text = storyText(start, ch.spineIndex, books.chapterText(book.id, ch.spineIndex))
+            if (text.isNotBlank()) prior += Prior(ch, text, name(ch))
         }
 
         // Keep within the model's context window: drop the earliest chapters first, keeping room for excerpts
@@ -78,8 +87,8 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
         // The current chapter alone may not fit either (some books are a few huge "parts"): its beginning is cut too.
         val currentBudget = maxChars - excerptBudget
         val currentHead = currentText.dropLast(currentBudget)
-        val excerptSources = removed.map { label(it.chapter) to it.text } +
-            listOfNotNull(currentHead.takeIf { it.isNotBlank() }?.let { "${current?.let(::label).orEmpty()} (earlier pages)" to it })
+        val excerptSources = removed.map { it.name to it.text } +
+            listOfNotNull(currentHead.takeIf { it.isNotBlank() }?.let { "${current?.let { name(it) }.orEmpty()} (earlier pages)" to it })
         val excerpts = if (term != null && excerptSources.isNotEmpty()) {
             excerptsMentioning(term, excerptSources, excerptBudget)
         } else ""
@@ -97,7 +106,7 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
         }
 
         val currentBlock = buildString {
-            append("<chapter n=\"${spineIndex + 1}\" title=\"${current?.let(::label).orEmpty()}\" status=\"in progress\">\n")
+            append("<chapter n=\"${spineIndex + 1}\" title=\"${current?.let { name(it) }.orEmpty()}\" status=\"in progress\">\n")
             append(currentText.takeLast(currentBudget))
             append("\n$READER_MARKER The book's text ends at this point for you.]\n</chapter>")
         }
@@ -115,6 +124,16 @@ class SpoilerFreeContextBuilder(private val books: BookRepository) {
     }
 
     companion object {
+        /**
+         * The part of a spine item's [text] that belongs to the story when it starts at [start]: nothing before its
+         * spine item, and in that item only the text from the start on.
+         */
+        internal fun storyText(start: FrontMatter.StoryStart?, spine: Int, text: String): String = when {
+            start == null || spine > start.spineIndex -> text
+            spine < start.spineIndex -> ""
+            else -> text.drop(start.offset).trimStart()
+        }
+
         /**
          * Passages (about [EXCERPT_RADIUS] chars on each side) from [chapters] that mention [term], ignoring case and
          * accents: the first mention always, then mentions spread evenly through the rest, within [budget] chars.
